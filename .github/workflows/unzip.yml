@@ -1,5 +1,5 @@
 
-name: Extract ZIP File
+name: Extract Project ZIP
 
 on:
   workflow_dispatch:
@@ -12,23 +12,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get repository files
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract ZIP archive
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Extract project
         run: |
-          if [ ! -f "maktaby1-ux-branch.zip" ]; then
-            echo "ERROR: ZIP file not found in repository root"
+          set -eu
+
+          ZIP="maktaby1-ux-branch.zip"
+
+          test -f "$ZIP" || {
+            echo "ERROR: ZIP file not found"
             exit 1
-          fi
+          }
+
+          unzip -t "$ZIP"
 
           mkdir -p extracted
-          unzip -o "maktaby1-ux-branch.zip" -d extracted
+          unzip -o "$ZIP" -d extracted
 
-      - name: Save extracted files
+          echo "Extracted files:"
+          find extracted -type f | wc -l
+
+          echo "Project files:"
+          find extracted -maxdepth 2 -type f | head -50
+
+      - name: Publish extracted files to repository
         run: |
+          set -eu
+
+          # Copy extracted files into the repository root.
+          # Preserve the original ZIP and workflow.
+          cp -a extracted/. .
+
+          rm -rf extracted
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add extracted
-          git commit -m "Extract maktaby1-ux-branch ZIP" || exit 0
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+            exit 0
+          fi
+
+          git commit -m "Extract project files into repository"
           git push
