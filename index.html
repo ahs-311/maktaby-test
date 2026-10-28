@@ -1777,7 +1777,9 @@ img,svg,video,canvas{max-width:100%}
         </select>
         <span id="libraryCount" style="font-size:13px;color:var(--text-muted);"></span>
         <button type="button" class="btn btn-outline btn-sm" onclick="resetLibraryView()">عرض الكل</button>
+        <button type="button" class="btn btn-outline btn-sm" id="libAdminToggleBtn" onclick="toggleLibAdminPanel()">إدارة المكتبة</button>
       </div>
+      <div id="libAdminRoot" style="display:none;"></div>
       <div id="libraryBrowse" style="display:grid;gap:8px;"></div>
       <div class="lawsuit-result" id="libraryResult" style="display:none;margin-top:14px;"></div>
 
@@ -5206,21 +5208,45 @@ const LIB_BASE = 'library/laws/';
 let _libCurrentFile = null;
 
 function libCatalog() {
+  try {
+    if (window.LIB_ADMIN && typeof LIB_ADMIN.mergedCatalog === 'function') {
+      return LIB_ADMIN.mergedCatalog();
+    }
+  } catch (e) {}
   return (window.MK_LIBRARY_CATALOG || []);
 }
 function libSearchIndex() {
+  try {
+    if (window.LIB_ADMIN && typeof LIB_ADMIN.mergedSearchDocs === 'function') {
+      return LIB_ADMIN.mergedSearchDocs();
+    }
+  } catch (e) {}
   return (window.MK_LIBRARY_SEARCH || []);
+}
+function toggleLibAdminPanel() {
+  const root = document.getElementById('libAdminRoot');
+  if (!root) return;
+  const open = root.style.display === 'none' || !root.style.display;
+  if (open) {
+    root.style.display = 'block';
+    try { LIB_ADMIN.renderAdmin(); } catch (e) { alert('تعذر فتح الإدارة: ' + e); }
+  } else {
+    root.style.display = 'none';
+  }
 }
 
 function initLibraryUI() {
-  const cats = [...new Set(libCatalog().map(x => x.category))].sort((a,b)=>a.localeCompare(b,'ar'));
+  const cats = [...new Set(libCatalog().map(x => x.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
   const sel = document.getElementById('libraryCategory');
-  if (sel && sel.options.length <= 1) {
+  if (sel) {
+    const keep = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
     cats.forEach(c => {
       const o = document.createElement('option');
       o.value = c; o.textContent = c;
       sel.appendChild(o);
     });
+    if (keep) sel.value = keep;
   }
   const chips = document.getElementById('libraryChips');
   if (chips && !chips.dataset.ready) {
@@ -5275,7 +5301,7 @@ function renderLibraryBrowse(list) {
       <div class="note-item" style="cursor:pointer;display:flex;gap:10px;align-items:flex-start;" onclick="openLibraryLaw('${esc(it.id)}')">
         <span style="font-size:18px;line-height:1.2;">📜</span>
         <div style="flex:1;min-width:0;">
-          <strong style="display:block;margin-bottom:2px;">${esc(it.title)}</strong>
+          <strong style="display:block;margin-bottom:2px;">${esc(it.title)}${it.custom ? ' <span class="badge badge-blue">إضافة</span>' : ''}</strong>
           <small style="color:var(--text-muted);">${esc(it.category)} · ${Math.round((it.chars||0)/1000) || 1} ألف حرف</small>
         </div>
       </div>`).join('');
@@ -5377,12 +5403,19 @@ function searchLibrary() {
 function openLibraryLaw(id) {
   const item = libCatalog().find(x => x.id === id) || libSearchIndex().find(x => x.id === id);
   if (!item) return alert('النص غير موجود في الفهرس');
+  // عناصر الإدارة المحلية (بدون ملف)
+  if (item.custom || (window.LIB_ADMIN && LIB_ADMIN.getItem(id))) {
+    const full = (window.LIB_ADMIN && LIB_ADMIN.getItem(id)) || item;
+    if (window.LIB_ADMIN && LIB_ADMIN.openCustomContent) {
+      return LIB_ADMIN.openCustomContent(full);
+    }
+  }
   const file = item.file || (id + '.htm');
   _libCurrentFile = LIB_BASE + file;
   const titleEl = document.getElementById('libViewerTitle');
   if (titleEl) titleEl.textContent = item.title || file;
   const frame = document.getElementById('libViewerFrame');
-  if (frame) frame.src = _libCurrentFile;
+  if (frame) { frame.removeAttribute('srcdoc'); frame.src = _libCurrentFile; }
   const ov = document.getElementById('libViewerOverlay');
   if (ov) ov.style.display = 'block';
   document.body.style.overflow = 'hidden';
@@ -7400,6 +7433,7 @@ renderSettings=function(){
 </script>
 <script src="library/catalog.js"></script>
 <script src="library/search-index.js"></script>
+<script src="library/lib-admin.js"></script>
 <script>
 
 // ===================== PHASE A: ICS + Notifications + UX =====================
