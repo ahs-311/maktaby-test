@@ -1,5 +1,5 @@
 /* مكتبي الإلكتروني — Service Worker (يعمل أونلاين وأوفلاين) */
-const VERSION = "maktabi-v1.8.0-lib";
+const VERSION = "maktabi-v1.8.2-nav-push";
 const CORE = [
   "./",
   "./index.html",
@@ -70,6 +70,74 @@ self.addEventListener("fetch", (e) => {
         })
         .catch(() => cached);
       return cached || fresh;
+    })
+  );
+});
+
+
+/* إشعارات محلية عبر Service Worker (أندرويد/كروم) */
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data && data.type === 'SHOW_NOTIFICATION') {
+    const title = data.title || 'مكتبي';
+    const options = Object.assign({
+      body: data.body || '',
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      dir: 'rtl',
+      lang: 'ar',
+      tag: data.tag || ('mk-' + Date.now()),
+      renotify: true,
+      vibrate: [120, 60, 120],
+      data: { url: data.url || './' }
+    }, data.options || {});
+    event.waitUntil(
+      self.registration.showNotification(title, options).catch((err) => {
+        console.warn('SW showNotification failed', err);
+      })
+    );
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || './';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (c.url && 'focus' in c) {
+          c.postMessage({ type: 'NOTIFICATION_CLICK', tag: event.notification.tag });
+          return c.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(target);
+    })
+  );
+});
+
+
+/* Web Push — جاهز عند تفعيل الخادم ومفاتيح VAPID (لا يُرسل شيء قبل ذلك) */
+self.addEventListener('push', (event) => {
+  let payload = { title: 'مكتبي', body: 'لديك تنبيه جديد', url: './' };
+  try {
+    if (event.data) {
+      const j = event.data.json();
+      payload = Object.assign(payload, j);
+    }
+  } catch (e) {
+    try { payload.body = event.data ? event.data.text() : payload.body; } catch (e2) {}
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'مكتبي', {
+      body: payload.body || '',
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      dir: 'rtl',
+      lang: 'ar',
+      tag: payload.tag || ('mk-push-' + Date.now()),
+      data: { url: payload.url || './' },
+      renotify: true,
+      vibrate: [120, 60, 120]
     })
   );
 });

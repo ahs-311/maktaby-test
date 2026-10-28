@@ -242,6 +242,46 @@
     #notifBanner.show { display: flex; }
     .ics-btn { white-space: nowrap; }
 
+    .mk-bell-wrap { position: relative; display: inline-flex; }
+    .mk-bell-btn {
+      width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--card); cursor: pointer; font-size: 18px; display: inline-flex;
+      align-items: center; justify-content: center; color: var(--text);
+    }
+    .mk-bell-btn:hover { border-color: var(--accent-gold); }
+    .mk-bell-badge {
+      position: absolute; top: -2px; left: -2px; min-width: 18px; height: 18px;
+      background: #A33B2B; color: #fff; font-size: 11px; font-weight: 700;
+      border-radius: 10px; display: none; align-items: center; justify-content: center; padding: 0 4px;
+    }
+    .mk-bell-badge.show { display: inline-flex; }
+    #mkAlertPanel {
+      display: none; position: absolute; top: 46px; left: 0; width: min(360px, 92vw);
+      max-height: 70vh; overflow: auto; background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; box-shadow: var(--shadow-hover); z-index: 600; padding: 12px;
+      color: var(--text);
+    }
+    #mkAlertPanel.open { display: block; }
+    #mkAlertPanel h4 { margin: 0 0 10px; color: var(--primary-brown); font-size: 15px; }
+    [data-theme="dark"] #mkAlertPanel h4 { color: var(--accent-gold); }
+    .mk-alert-item {
+      border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+      background: var(--bg); cursor: pointer;
+    }
+    .mk-alert-item:hover { border-color: var(--accent-gold); }
+    .mk-alert-item .t { font-weight: 700; font-size: 13px; }
+    .mk-alert-item .b { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .mk-alert-item .when { font-size: 11px; color: var(--accent-gold); margin-top: 4px; }
+    .mk-alert-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+    #mkInAppToast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120px);
+      background: #0B1F33; color: #fff; padding: 12px 18px; border-radius: 12px;
+      border: 1px solid #C5A869; z-index: 100001; max-width: min(92vw, 420px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.25); transition: transform .25s ease; font-size: 14px;
+      text-align: center;
+    }
+    #mkInAppToast.show { transform: translateX(-50%) translateY(0); }
+
     .day-cell.today, .week-day.today {
       border-color: var(--accent-gold) !important;
       box-shadow: inset 0 0 0 1px var(--accent-gold);
@@ -987,7 +1027,23 @@ img,svg,video,canvas{max-width:100%}
 }
 
 
-    /* ===== ثابت: شريط جانبي داكن دائمًا (مثل الوضع الليلي المعتمد) ===== */
+    
+    /* صقل موبايل إضافي */
+    @media (max-width: 760px) {
+      .mk-bell-btn { width: 40px; height: 40px; }
+      #mkAlertPanel { left: auto; right: 0; width: min(96vw, 360px); }
+      .topbar { padding: 8px 10px; }
+      .btn-sm { min-height: 34px; padding: 6px 10px; }
+      .actions-cell { display: flex; flex-wrap: wrap; gap: 4px; }
+      .actions-cell .btn { flex: 0 0 auto; }
+      .sess-head { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+      .modal-footer { position: sticky; bottom: 0; background: var(--card); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+      #mkInAppToast { bottom: max(16px, env(safe-area-inset-bottom)); font-size: 13px; padding: 10px 14px; }
+      .nav-item { min-height: 44px; }
+      .table-wrap { -webkit-overflow-scrolling: touch; }
+    }
+
+/* ===== ثابت: شريط جانبي داكن دائمًا (مثل الوضع الليلي المعتمد) ===== */
     .sidebar {
       background: #0B1F33 !important;
       color: #FFFFFF !important;
@@ -1144,6 +1200,21 @@ img,svg,video,canvas{max-width:100%}
           oninput="runGlobalSearch()" onfocus="runGlobalSearch()"
           style="padding:8px 14px;border:1px solid var(--border);border-radius:20px;font-family:inherit;font-size:13px;background:var(--card);color:var(--text);width:200px;outline:none;" />
         <div id="searchDrop" style="display:none;position:absolute;top:42px;left:0;width:340px;max-width:90vw;max-height:70vh;overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:500;padding:6px;"></div>
+      </div>
+      <div class="mk-bell-wrap">
+        <button type="button" class="mk-bell-btn" id="mkBellBtn" onclick="mkToggleAlertPanel(event)" title="التنبيهات">🔔<span class="mk-bell-badge" id="mkBellBadge">0</span></button>
+        <div id="mkAlertPanel" role="dialog" aria-label="التنبيهات">
+          <h4>التنبيهات والتذكيرات</h4>
+          <div class="mk-alert-actions">
+            <button type="button" class="btn btn-primary btn-sm" onclick="mkTestNotification()">تجربة إشعار نظام</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="mkTestInAppReminder()">تذكير بعد 10 ثوانٍ</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="mkRunDailySummary(true)">ملخص اليوم</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="mkRequestNotifPermission()">إذن الإشعارات</button>
+          </div>
+          <div id="mkAlertUpcoming"><p style="color:var(--text-muted);font-size:13px;">جاري التحميل...</p></div>
+          <h4 style="margin-top:14px;">آخر التنبيهات داخل التطبيق</h4>
+          <div id="mkAlertLog"></div>
+        </div>
       </div>
       <button class="btn-icon" onclick="toggleTheme()" title="الوضع الداكن">🌓</button>
       <span class="dq-user-pill" id="dqCurrentUser" style="display:none"></span>
@@ -1834,6 +1905,30 @@ img,svg,video,canvas{max-width:100%}
             <div class="detail-item"><label>عدد الفواتير</label><div class="val" id="infoInvoices">0</div></div>
           </div>
         </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header"><h2>التنبيهات المحلية — ملخص يومي وساعات هدوء</h2></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">تعمل على هذا الجهاز أثناء فتح التطبيق أو بقاؤه في الخلفية القريبة. لا تغني عن Web Push بعد الإغلاق الكامل.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label><input type="checkbox" id="mkDailySummaryOn" style="width:auto;margin-left:6px;" /> تفعيل الملخص اليومي</label>
+                <input type="time" id="mkDailySummaryTime" value="08:00" style="margin-top:8px;" />
+              </div>
+              <div class="form-group">
+                <label><input type="checkbox" id="mkQuietOn" style="width:auto;margin-left:6px;" /> تفعيل ساعات الهدوء</label>
+                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                  <div><small>من</small><input type="time" id="mkQuietStart" value="22:00" /></div>
+                  <div><small>إلى</small><input type="time" id="mkQuietEnd" value="07:00" /></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="mkSaveAlertPrefs()">حفظ إعدادات التنبيه</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="mkRunDailySummary(true)">عرض ملخص اليوم الآن</button>
+            </div>
+            <p id="mkAlertPrefsStatus" style="margin-top:10px;font-size:12px;color:var(--text-muted);"></p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2039,6 +2134,24 @@ img,svg,video,canvas{max-width:100%}
         <div class="form-group"><label>اسم المحامي/المسؤول (يُسند تلقائيًا عند مطابقة حساب)</label><input type="text" id="taskAssignee" list="dqLawyerNames" autocomplete="off" /><datalist id="dqLawyerNames"></datalist><small style="color:var(--text-muted)">اكتب اسم المحامي كما هو مسجل. إذا لم توجد مطابقة، ستبقى المهمة غير مسندة لحساب حتى تربطها لاحقًا.</small></div>
         <div class="form-group"><label>تاريخ الاستحقاق</label><input type="date" id="taskDue" /></div>
       </div>
+      <div class="form-grid">
+        <div class="form-group"><label>الأولوية</label>
+          <select id="taskPriority">
+            <option value="عادية">عادية</option>
+            <option value="متوسطة">متوسطة</option>
+            <option value="عالية">عالية</option>
+          </select>
+        </div>
+        <div class="form-group"><label>تذكير قبل الاستحقاق</label>
+          <select id="taskRemindMins">
+            <option value="0">بدون</option>
+            <option value="60">قبل ساعة</option>
+            <option value="180">قبل 3 ساعات</option>
+            <option value="1440" selected>قبل يوم</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>ملاحظات</label><textarea id="taskNotes" rows="2" placeholder="اختياري"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveTask()">حفظ</button>
@@ -2169,6 +2282,20 @@ img,svg,video,canvas{max-width:100%}
           <option value="مكتمل">مكتمل</option>
           <option value="ملغى">ملغى</option>
         </select>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>التكرار</label>
+          <select id="eventRepeat" onchange="mkToggleRepeatUntil()">
+            <option value="none">بدون تكرار</option>
+            <option value="daily">يومي</option>
+            <option value="weekly">أسبوعي</option>
+            <option value="monthly">شهري</option>
+          </select>
+        </div>
+        <div class="form-group" id="eventRepeatUntilWrap" style="display:none;">
+          <label>يتكرر حتى تاريخ</label>
+          <input type="date" id="eventRepeatUntil" />
+        </div>
       </div>
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;gap:8px;">
@@ -2345,13 +2472,25 @@ const DB = {
 };
 
 // ===================== NAV =====================
-function showPage(pageId) {
+function showPage(pageId, opts) {
+  opts = opts || {};
+  // أغلق اللوحات العائمة عند التنقل
+  try {
+    const ap = document.getElementById('mkAlertPanel');
+    if (ap) ap.classList.remove('open');
+  } catch (e) {}
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + pageId);
   if (page) page.classList.add('active');
   const nav = document.querySelector(`[data-page="${pageId}"]`);
   if (nav) nav.classList.add('active');
+  if (!opts.skipHistory) {
+    try {
+      const st = history.state && history.state.mkPage === pageId;
+      if (!st) history.pushState({ mkPage: pageId, mkApp: 1 }, '', '#' + pageId);
+    } catch (err) {}
+  }
 
   const titles = {
     dashboard: 'لوحة التحكم', clients: 'إدارة العملاء', cases: 'إدارة القضايا',
@@ -2380,6 +2519,134 @@ function showPage(pageId) {
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => showPage(btn.dataset.page));
 });
+
+
+// ===================== تنقل + حالة المواعيد + تجهيز Web Push =====================
+function mkSetEventStatus(id, status) {
+  const events = DB.get('events');
+  const e = events.find(x => x.id === id);
+  if (!e) return;
+  e.status = status || 'قادم';
+  e.updatedAt = new Date().toISOString();
+  DB.set('events', events);
+  try { renderEvents(); } catch (err) {}
+  try { renderAgenda(); } catch (err) {}
+  try { mkScheduleLocalReminders(); } catch (err) {}
+  try { mkRenderAlertPanel(); } catch (err) {}
+  toast(status === 'مكتمل' ? 'تم إكمال الموعد' : 'تم تحديث الحالة');
+}
+
+// رجوع المتصفح/أندرويد: نافذة أولًا ثم صفحة سابقة
+(function enhanceBackNav() {
+  try {
+    if (!history.state || !history.state.mkApp) {
+      history.replaceState({ mkApp: 1, mkPage: 'dashboard' }, '', location.href);
+    }
+  } catch (e) {}
+  window.addEventListener('popstate', function (ev) {
+    const id = typeof mkAnyModalOpen === 'function' ? mkAnyModalOpen() : (document.querySelector('.modal-overlay.show') || {}).id;
+    if (id && typeof closeModal === 'function') {
+      closeModal(id);
+      try { history.pushState({ mkApp: 1, mkPage: (location.hash || '#dashboard').replace('#','') }, ''); } catch (e) {}
+      return;
+    }
+    const page = (ev.state && ev.state.mkPage) || (location.hash || '').replace(/^#/, '') || 'dashboard';
+    if (page && document.getElementById('page-' + page)) {
+      showPage(page, { skipHistory: true });
+    }
+  });
+  // فتح من رابط #page
+  document.addEventListener('DOMContentLoaded', function () {
+    const h = (location.hash || '').replace(/^#/, '');
+    if (h && document.getElementById('page-' + h)) {
+      setTimeout(function () { showPage(h, { skipHistory: true }); }, 50);
+    }
+  });
+})();
+
+/** Web Push — لا يُفعَّل بالكامل إلا بعد مفاتيح VAPID وخادم إرسال (عند الرفع) */
+window.MK_PUSH = {
+  /** ضع المفتاح العام هنا لاحقًا بعد توليده — لا تضع المفتاح الخاص في الواجهة */
+  vapidPublicKey: '',
+  async supported() {
+    return !!(window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
+  },
+  urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
+    return out;
+  },
+  async subscribe() {
+    if (!(await this.supported())) {
+      alert('Web Push غير مدعوم في هذا المتصفح/السياق. يلزم https.');
+      return null;
+    }
+    if (!this.vapidPublicKey) {
+      alert('لم يُضبط مفتاح VAPID بعد. عند الرفع: نولّد المفاتيح ونربط خادم الإرسال ثم نضع المفتاح العام هنا.');
+      return null;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return null;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
+      });
+    }
+    try {
+      localStorage.setItem('mk_push_subscription', JSON.stringify(sub.toJSON()));
+    } catch (e) {}
+    toast('تم تسجيل اشتراك الدفع — بانتظار ربط الخادم');
+    return sub;
+  },
+  getSavedSubscription() {
+    try { return JSON.parse(localStorage.getItem('mk_push_subscription') || 'null'); } catch (e) { return null; }
+  },
+  statusText() {
+    if (!window.isSecureContext) return 'يتطلب https';
+    if (!('PushManager' in window)) return 'غير مدعوم';
+    if (!this.vapidPublicKey) return 'بانتظار مفاتيح VAPID عند الرفع';
+    return this.getSavedSubscription() ? 'مشترك (محليًا)' : 'غير مشترك';
+  }
+};
+
+// تذكير المهام في الجدولة المحلية
+(function patchTaskReminders() {
+  const _sched = typeof mkScheduleLocalReminders === 'function' ? mkScheduleLocalReminders : null;
+  if (!_sched) return;
+  window.mkScheduleLocalReminders = function () {
+    _sched();
+    if (!mkNotifSupported || !mkNotifSupported() || Notification.permission !== 'granted') return;
+    if (typeof mkIsSecureContext === 'function' && !mkIsSecureContext()) return;
+    try {
+      const now = Date.now();
+      const tasks = (DB.get('tasks') || []).filter(t => t.due && t.status !== 'منتهية');
+      tasks.forEach(function (t) {
+        const mins = t.remindMins != null ? Number(t.remindMins) : 1440;
+        if (!mins) return;
+        const start = mkEventStartMs({ date: t.due, time: '09:00' });
+        if (!start) return;
+        const when = start - mins * 60e3;
+        if (when < now - 60e3 || when > now + 36 * 3600e3) return;
+        if (typeof mkWasFired === 'function' && mkWasFired('task-' + t.id, 'tr' + mins)) return;
+        const delay = Math.max(500, when - now);
+        const tid = setTimeout(function () {
+          if (mkWasFired('task-' + t.id, 'tr' + mins)) return;
+          mkMarkFired('task-' + t.id, 'tr' + mins);
+          mkShowNotification('مهمة', t.title || 'استحقاق قريب', 'task-r-' + t.id);
+        }, delay);
+        if (!window._mkNotifTimers) window._mkNotifTimers = [];
+        window._mkNotifTimers.push(tid);
+      });
+    } catch (e) {}
+  };
+})();
+
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
@@ -2753,7 +3020,8 @@ function printCourtDay() {
     th,td{border:1px solid #444;padding:8px;text-align:right;}th{background:#eee;}</style></head><body>${dqPrintHeaderHTML()}
     <h2>جدول الجلسات — ${esc(fmtDay(date))}</h2><p>عدد الجلسات: ${list.length}</p>
     <table><thead><tr><th>#</th><th>رقم القضية</th><th>الموضوع</th><th>الموكل</th><th>الخصم</th><th>المحكمة / الدائرة</th><th>المطلوب</th><th>النتيجة</th><th>القادمة</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="9">لا جلسات</td></tr>'}</tbody></table>${dqPrintFooterHTML()}</body></html>`);
+    <tbody>${rows || '<tr><td colspan="9">لا جلسات</td></tr>'}</tbody></table>${dqPrintFooterHTML()}<div id="mkInAppToast" aria-live="polite"></div>
+</body></html>`);
   w.document.close();
   w.print();
 }
@@ -3253,6 +3521,7 @@ function sessionCardHTML(s, opts = {}) {
         ${opts.showDate ? `<span class="badge badge-purple">${esc(s.date)}</span>` : ''}
         <button class="btn btn-outline btn-sm" onclick="DQ_DETAILS.open('session','${id}')">تفاصيل</button>
         <button class="btn btn-outline btn-sm" onclick="openSessionModal({id:'${id}'})">تعديل</button>
+        <button class="btn btn-outline btn-sm" type="button" title="تقويم الجهاز" onclick="mkDownloadIcsForSession('${id}')">📅</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSession('${id}')">حذف</button>
       </div>
     </div>
@@ -3387,6 +3656,9 @@ function openTaskModal(opts = {}) {
     cases.map(c => `<option value="${c.id}">${esc(c.number)} — ${esc(c.subject)}</option>`).join('');
   if (opts.caseId) document.getElementById('taskCase').value = opts.caseId;
   document.getElementById('taskTitle').value = '';
+  const _tp = document.getElementById('taskPriority'); if (_tp) _tp.value = 'عادية';
+  const _tn = document.getElementById('taskNotes'); if (_tn) _tn.value = '';
+  const _tr = document.getElementById('taskRemindMins'); if (_tr) _tr.value = '1440';
   document.getElementById('taskAssignee').value = '';
   const lawyerList = document.getElementById('dqLawyerNames');
   if (lawyerList) lawyerList.innerHTML = (typeof dqAccounts === 'function' ? dqAccounts().filter(a => a.role === 'lawyer' && a.active !== false) : []).map(a => `<option value="${esc(a.name)}"></option>`).join('');
@@ -3397,12 +3669,16 @@ function openTaskModal(opts = {}) {
     const t = DB.get('tasks').find(x => x.id === editingTaskId);
     if (t) {
       document.getElementById('taskTitle').value = t.title || '';
+      if (_tp) _tp.value = t.priority || 'عادية';
+      if (_tn) _tn.value = t.notes || '';
+      if (_tr) _tr.value = String(t.remindMins != null ? t.remindMins : 1440);
       document.getElementById('taskCase').value = t.caseId || '';
       document.getElementById('taskAssignee').value = t.assignee || '';
       document.getElementById('taskDue').value = t.due || '';
     }
   }
   document.getElementById('taskModal').classList.add('show');
+  try { history.pushState({ mkModal: 'taskModal' }, ''); } catch (err) {}
 }
 let editingTaskId = null;
 
@@ -3427,6 +3703,9 @@ function saveTask() {
   const assigned = matches.length === 1 ? matches[0] : null;
   const fields = {
     title,
+      notes: (document.getElementById('taskNotes') || {}).value || '',
+      priority: (document.getElementById('taskPriority') || {}).value || 'عادية',
+      remindMins: parseInt((document.getElementById('taskRemindMins') || {}).value || '0', 10) || 0,
     caseId: document.getElementById('taskCase').value || null,
     assignee: assigned ? assigned.name : assigneeText,
     assignedAccountId: assigned ? assigned.id : null,
@@ -3496,7 +3775,7 @@ function renderTasks() {
     const done = t.status === 'منتهية';
     const late = !done && t.due && t.due < today;
     return `<tr style="${done ? 'opacity:0.55;' : ''}">
-      <td><strong style="cursor:pointer;color:var(--accent);${done ? 'text-decoration:line-through;' : ''}" onclick="DQ_DETAILS.open('task','${t.id}')">${esc(t.title)}</strong></td>
+      <td><strong style="cursor:pointer;color:var(--accent);${done ? 'text-decoration:line-through;' : ''}" onclick="DQ_DETAILS.open('task','${t.id}')">${esc(t.title)}</strong>${t.priority && t.priority !== 'عادية' ? ' <span class="badge badge-yellow">' + esc(t.priority) + '</span>' : ''}${t.notes ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + esc(t.notes).slice(0,80) + '</div>' : ''}</td>
       <td>${c ? esc(c.number) : '—'}</td>
       <td>${esc(t.assignee) || '—'}</td>
       <td>${esc(t.due) || '—'} ${late ? '<span class="badge badge-red">متأخرة</span>' : (t.due === today && !done ? '<span class="badge badge-yellow">اليوم</span>' : '')}</td>
@@ -4287,6 +4566,9 @@ function openEventModal(id = null, opts = {}) {
   const placeEl = document.getElementById('eventPlace'); if (placeEl) placeEl.value = '';
   const notesEl = document.getElementById('eventNotes'); if (notesEl) notesEl.value = '';
   document.getElementById('eventType').value = 'جلسة محكمة';
+  const _er = document.getElementById('eventRepeat'); if (_er) _er.value = 'none';
+  const _eu = document.getElementById('eventRepeatUntil'); if (_eu) _eu.value = '';
+  try { mkToggleRepeatUntil(); } catch (e) {}
   document.getElementById('eventRemind').value = '1';
   const rm = document.getElementById('eventRemindMins'); if (rm) rm.value = '15';
   const st = document.getElementById('eventStatus'); if (st) st.value = 'قادم';
@@ -4307,6 +4589,9 @@ function openEventModal(id = null, opts = {}) {
       document.getElementById('eventCase').value = e.caseId || '';
       document.getElementById('eventClient').value = e.clientId || '';
       document.getElementById('eventRemind').value = e.remind ?? 1;
+      const _er2 = document.getElementById('eventRepeat'); if (_er2) _er2.value = e.repeat || 'none';
+      const _eu2 = document.getElementById('eventRepeatUntil'); if (_eu2) _eu2.value = e.repeatUntil || '';
+      try { mkToggleRepeatUntil(); } catch (err) {}
       if (rm) rm.value = String(e.remindMins != null ? e.remindMins : 15);
       if (st) st.value = e.status || 'قادم';
     }
@@ -4361,7 +4646,9 @@ function saveEvent() {
       caseId: document.getElementById('eventCase').value || null,
       remind: parseInt(document.getElementById('eventRemind').value) || 0,
       remindMins: parseInt((document.getElementById('eventRemindMins') || {}).value || '0') || 0,
-      status: (document.getElementById('eventStatus') || {}).value || 'قادم'
+      status: (document.getElementById('eventStatus') || {}).value || 'قادم',
+      repeat: (document.getElementById('eventRepeat') || {}).value || 'none',
+      repeatUntil: (document.getElementById('eventRepeatUntil') || {}).value || ''
     };
     const _k = fields.caseId ? DB.get('cases').find(c => c.id === fields.caseId) : null;
     fields.clientId = (_k && _k.clientId) || document.getElementById('eventClient').value || null;
@@ -4369,9 +4656,14 @@ function saveEvent() {
     if (editingEventId) {
       const e = events.find(x => x.id === editingEventId);
       if (e) Object.assign(e, fields);
+      savedId = editingEventId;
+      // لا نعيد توليد السلسلة عند التعديل لتجنب تضخيم غير مقصود
     } else {
       savedId = DB.uid();
-      events.unshift({ id: savedId, ...fields, createdAt: new Date().toISOString() });
+      const base = { id: savedId, ...fields, seriesId: savedId, createdAt: new Date().toISOString() };
+      const series = (typeof mkExpandRecurringEvent === 'function') ? mkExpandRecurringEvent(base) : [base];
+      series.reverse().forEach(function (item) { events.unshift(item); });
+      if (series.length > 1) toast('تم إنشاء ' + series.length + ' موعدًا متكررًا');
     }
     editingEventId = null;
     DB.set('events', events);
@@ -4381,8 +4673,8 @@ function saveEvent() {
     updateNavCounts();
     try { mkScheduleLocalReminders(); } catch (e) {}
     toast('تم حفظ الموعد');
-    const icsAsk = confirm('تم الحفظ. هل تريد تنزيل ملف لإضافته إلى تقويم الجهاز (ICS)؟');
-    if (icsAsk) mkDownloadIcsForEventId(savedId);
+    /* تنزيل ICS يدويًا من زر 📅 — لا نقاطع كل حفظ */
+    try { mkRenderAlertPanel(); } catch (e) {}
   } finally {
     if (btn) { btn.dataset.busy = '0'; btn.disabled = false; }
   }
@@ -4419,12 +4711,13 @@ function renderEvents() {
     return `<tr style="${isPast ? 'opacity:0.55;' : ''}">
       <td>${e.date}${e.date === today ? ' <span class="badge badge-yellow">اليوم</span>' : ''}</td>
       <td>${e.time || '—'}</td>
-      <td><span class="badge badge-blue">${esc(e.type)}</span></td>
+      <td><span class="badge badge-blue">${esc(e.type)}</span>${e.status && e.status !== "قادم" ? ` <span class="badge ${e.status === "مكتمل" ? "badge-green" : (e.status === "ملغى" ? "badge-red" : "badge-yellow")}">${esc(e.status)}</span>` : ""}</td>
       <td>${esc(e.desc)}</td>
       <td>${c ? esc(c.number) : (e.clientId && (DB.get('clients').find(x => x.id === e.clientId) || {}).name ? esc(DB.get('clients').find(x => x.id === e.clientId).name) + ' <span class="case-submeta" style="display:inline">(موكل)</span>' : '—')}</td>
       <td class="actions-cell"><button class="btn btn-outline btn-sm" onclick="DQ_DETAILS.open('event','${e.id}')">تفاصيل</button>
         ${String(e.id).startsWith('task:') ? '' : `<button class="btn btn-outline btn-sm" onclick="openEventModal('${e.id}')">تعديل</button>
         <button class="btn btn-outline btn-sm" type="button" onclick="mkDownloadIcsForEventId('${e.id}')">📅</button>
+        ${e.status !== 'مكتمل' && e.status !== 'ملغى' ? `<button class="btn btn-success btn-sm" type="button" onclick="mkSetEventStatus('${e.id}','مكتمل')">تم</button>` : ''}
         <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')">حذف</button>`}</td>
     </tr>`;
   }).join('');
@@ -5915,6 +6208,7 @@ function dqInstallPrintBranding() {
 
 // ===================== SETTINGS =====================
 function renderSettings() {
+  try { mkLoadAlertPrefsUI(); } catch (e) {}
   dqLoadOfficeProfile();
   const canEditOffice = !dqCurrentAccount || ['owner','manager'].includes(dqCurrentAccount.role);
   ['dqOfficeName','dqOfficeLawyer','dqOfficePhones','dqOfficeAddress','dqOfficeContact'].forEach(id=>{const el=document.getElementById(id);if(el)el.readOnly=!canEditOffice;});
@@ -7137,10 +7431,18 @@ function mkWasFired(id, slot) {
 function mkNotifSupported() {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
+function mkIsSecureContext() {
+  try {
+    if (window.isSecureContext) return true;
+  } catch (e) {}
+  const p = location.protocol || '';
+  return p === 'https:' || p === 'http:' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+}
 function mkNotifPermission() {
   if (!mkNotifSupported()) return 'unsupported';
   return Notification.permission;
 }
+
 function mkUpdateNotifBanner() {
   let el = document.getElementById('notifBanner');
   if (!el) {
@@ -7150,16 +7452,93 @@ function mkUpdateNotifBanner() {
     if (main.firstChild) main.insertBefore(el, main.firstChild);
     else main.appendChild(el);
   }
+  if (!mkIsSecureContext()) {
+    el.classList.add('show');
+    el.innerHTML = '<span>الإشعارات تتطلب فتح التطبيق عبر <strong>https</strong> أو استضافة (لا تعمل من ملف محلي content:// أو file:// على أندرويد).</span>';
+    return;
+  }
   const perm = mkNotifPermission();
-  if (perm === 'granted' || perm === 'unsupported') {
-    el.classList.remove('show');
-    el.innerHTML = '';
+  if (perm === 'granted') {
+    el.classList.add('show');
+    el.innerHTML = '<span>الإشعارات مفعّلة على هذا الجهاز.</span><button type="button" class="btn btn-outline btn-sm" onclick="mkTestNotification()">تجربة إشعار الآن</button>';
+    return;
+  }
+  if (perm === 'unsupported') {
+    el.classList.add('show');
+    el.innerHTML = '<span>هذا المتصفح لا يدعم إشعارات الويب.</span>';
     return;
   }
   el.classList.add('show');
   el.innerHTML = perm === 'denied'
-    ? '<span>الإشعارات مرفوضة من المتصفح. يمكنك تفعيلها من إعدادات الموقع.</span>'
-    : '<span>فعّل إشعارات المواعيد والجلسات على هذا الجهاز (أثناء فتح التطبيق).</span><button type="button" class="btn btn-primary btn-sm" onclick="mkRequestNotifPermission()">تفعيل الإشعارات</button><button type="button" class="btn btn-outline btn-sm" onclick="mkTestNotification()">تجربة</button>';
+    ? '<span>الإشعارات مرفوضة. من إعدادات الموقع في المتصفح اختر «السماح» ثم أعد المحاولة.</span><button type="button" class="btn btn-outline btn-sm" onclick="mkUpdateNotifBanner()">تحديث الحالة</button>'
+    : '<span>فعّل إشعارات المواعيد والجلسات (أثناء فتح التطبيق).</span><button type="button" class="btn btn-primary btn-sm" onclick="mkRequestNotifPermission()">تفعيل الإشعارات</button><button type="button" class="btn btn-outline btn-sm" onclick="mkTestNotification()">تجربة</button>';
+}
+
+async function mkEnsureServiceWorker() {
+  if (!('serviceWorker' in navigator)) return null;
+  if (!mkIsSecureContext()) return null;
+  try {
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      reg = await navigator.serviceWorker.register('sw.js');
+    }
+    await navigator.serviceWorker.ready;
+    return reg || (await navigator.serviceWorker.getRegistration());
+  } catch (e) {
+    console.warn('SW register', e);
+    return null;
+  }
+}
+
+async function mkShowNotification(title, body, tag) {
+  if (!mkNotifSupported()) {
+    try { toast(title + (body ? ': ' + body : '')); } catch (e) {}
+    return false;
+  }
+  if (Notification.permission !== 'granted') return false;
+  const opts = {
+    body: body || '',
+    tag: tag || ('mk-' + Date.now()),
+    dir: 'rtl',
+    lang: 'ar',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    renotify: true,
+    requireInteraction: false
+  };
+  // 1) الأفضل على أندرويد: عبر Service Worker
+  try {
+    const reg = await mkEnsureServiceWorker();
+    if (reg && reg.showNotification) {
+      await reg.showNotification(title || 'مكتبي', opts);
+      return true;
+    }
+  } catch (e) {
+    console.warn('SW notification failed', e);
+  }
+  // 2) عبر postMessage للـ SW
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SHOW_NOTIFICATION',
+        title: title || 'مكتبي',
+        body: body || '',
+        tag: opts.tag,
+        url: './'
+      });
+      return true;
+    }
+  } catch (e) {}
+  // 3) Notification API مباشرة
+  try {
+    const n = new Notification(title || 'مكتبي', opts);
+    n.onclick = function () { try { window.focus(); } catch (e) {} try { n.close(); } catch (e) {} };
+    return true;
+  } catch (e) {
+    console.warn('Notification() failed', e);
+    try { toast((title || 'تنبيه') + (body ? ' — ' + body : '')); } catch (err) {}
+    return false;
+  }
 }
 
 async function mkRequestNotifPermission() {
@@ -7167,14 +7546,21 @@ async function mkRequestNotifPermission() {
     alert('هذا المتصفح لا يدعم إشعارات الويب.');
     return false;
   }
+  if (!mkIsSecureContext()) {
+    alert('لن تظهر إشعارات النظام من ملف محلي.\nارفع التطبيق على استضافة https (مثل Vercel) أو افتحه عبر رابط آمن، ثم أعد المحاولة.');
+    mkUpdateNotifBanner();
+    return false;
+  }
+  await mkEnsureServiceWorker();
   if (Notification.permission === 'granted') {
     toast('الإشعارات مفعّلة');
     mkUpdateNotifBanner();
     mkScheduleLocalReminders();
+    await mkShowNotification('مكتبي', 'الإشعارات تعمل. هذا تأكيد فوري.', 'mk-granted-ok');
     return true;
   }
   if (Notification.permission === 'denied') {
-    alert('الإشعارات مرفوضة. من إعدادات المتصفح لهذا الموقع اختر «السماح» ثم أعد المحاولة.');
+    alert('الإشعارات مرفوضة. من إعدادات المتصفح لهذا الموقع اختر «السماح».');
     mkUpdateNotifBanner();
     return false;
   }
@@ -7184,42 +7570,38 @@ async function mkRequestNotifPermission() {
     if (r === 'granted') {
       toast('تم تفعيل الإشعارات');
       mkScheduleLocalReminders();
+      // تأخير بسيط بعد منح الإذن (مهم على أندرويد)
+      setTimeout(function () {
+        mkShowNotification('مكتبي — تم التفعيل', 'إذا ظهر هذا في مركز الإشعارات فالنظام يعمل.', 'mk-after-grant');
+      }, 400);
       return true;
     }
     toast('لم يتم منح الإذن');
     return false;
   } catch (e) {
-    alert('تعذر طلب الإذن: ' + (e.message || e));
+    alert('تعذر طلب الإذن: ' + (e && e.message ? e.message : e));
     return false;
   }
 }
 
-function mkShowNotification(title, body, tag) {
-  if (!mkNotifSupported() || Notification.permission !== 'granted') return false;
-  try {
-    const n = new Notification(title || 'مكتبي', {
-      body: body || '',
-      tag: tag || ('mk-' + Date.now()),
-      dir: 'rtl',
-      lang: 'ar',
-      icon: 'icon-192.png',
-      badge: 'icon-192.png'
-    });
-    n.onclick = function () { try { window.focus(); } catch (e) {} n.close(); };
-    return true;
-  } catch (e) {
-    console.warn(e);
-    return false;
+async function mkTestNotification() {
+  if (!mkIsSecureContext()) {
+    alert('الإشعارات لا تعمل من ملف محلي على أندرويد.\nاستخدم نسخة مستضافة على https.');
+    mkUpdateNotifBanner();
+    return;
   }
-}
-
-function mkTestNotification() {
-  mkRequestNotifPermission().then(ok => {
-    if (ok || mkNotifPermission() === 'granted') {
-      mkShowNotification('مكتبي — إشعار تجريبي', 'إذا ظهر هذا في مركز إشعارات الجهاز فالإذن يعمل. التذكيرات تعمل أثناء فتح التطبيق.', 'mk-test');
-      toast('تم إرسال إشعار تجريبي');
-    }
-  });
+  const okPerm = Notification.permission === 'granted' || (await mkRequestNotifPermission());
+  if (!okPerm && Notification.permission !== 'granted') return;
+  const ok = await mkShowNotification(
+    'مكتبي — إشعار تجريبي',
+    'إذا ظهر هذا في مركز إشعارات الجهاز فالإذن يعمل. التذكيرات تعمل أثناء فتح التطبيق على رابط آمن.',
+    'mk-test-' + Date.now()
+  );
+  if (ok) toast('تم إرسال إشعار تجريبي — راجع مركز الإشعارات');
+  else {
+    toast('تعذر إظهار إشعار النظام — سيظهر تنبيه داخل التطبيق');
+    alert('مكتبي — إشعار تجريبي\n\nتعذر الوصول لمركز إشعارات النظام. غالبًا بسبب فتح الملف محليًا أو قيود المتصفح.');
+  }
 }
 
 function mkEventStartMs(e) {
@@ -7231,32 +7613,39 @@ function mkEventStartMs(e) {
 }
 
 function mkClearNotifTimers() {
-  _mkNotifTimers.forEach(id => clearTimeout(id));
-  _mkNotifTimers = [];
+  if (!window._mkNotifTimers) window._mkNotifTimers = [];
+  window._mkNotifTimers.forEach(function (id) { clearTimeout(id); });
+  window._mkNotifTimers = [];
 }
 
 function mkScheduleLocalReminders() {
   mkClearNotifTimers();
   if (!mkNotifSupported() || Notification.permission !== 'granted') return;
+  if (!mkIsSecureContext()) return;
   const now = Date.now();
-  const horizon = now + 36 * 3600e3; // 36h ahead while tab may stay open
-  const events = (typeof DB !== 'undefined' && DB.get) ? DB.get('events') : [];
-  const sessions = (typeof DB !== 'undefined' && DB.get) ? DB.get('sessions') : [];
-  const tasks = (typeof DB !== 'undefined' && DB.get) ? DB.get('tasks') : [];
+  const horizon = now + 36 * 3600e3;
+  let events = [], sessions = [], tasks = [];
+  try {
+    if (typeof DB !== 'undefined' && DB.get) {
+      events = DB.get('events') || [];
+      sessions = DB.get('sessions') || [];
+      tasks = DB.get('tasks') || [];
+    }
+  } catch (e) { return; }
 
   function schedule(id, when, title, body, slot) {
     if (!when || when < now - 60e3 || when > horizon) return;
     if (mkWasFired(id, slot)) return;
-    const delay = Math.max(0, when - now);
-    const tid = setTimeout(() => {
+    const delay = Math.max(500, when - now);
+    const tid = setTimeout(function () {
       if (mkWasFired(id, slot)) return;
       mkMarkFired(id, slot);
       mkShowNotification(title, body, 'mk-' + id + '-' + slot);
     }, delay);
-    _mkNotifTimers.push(tid);
+    window._mkNotifTimers.push(tid);
   }
 
-  events.forEach(e => {
+  events.forEach(function (e) {
     if (e.status === 'ملغى' || e.status === 'مكتمل') return;
     const start = mkEventStartMs(e);
     if (!start) return;
@@ -7264,26 +7653,418 @@ function mkScheduleLocalReminders() {
     if (mins > 0) {
       schedule(e.id, start - mins * 60e3, e.type || 'موعد', (e.desc || '') + (e.place ? ' — ' + e.place : ''), 'm' + mins);
     }
-    // day-before style if remind days set and no specific time focus
     if (e.remind > 0) {
       schedule(e.id, start - e.remind * 864e5, 'تذكير: ' + (e.type || 'موعد'), e.desc || '', 'd' + e.remind);
     }
   });
 
-  sessions.forEach(s => {
+  sessions.forEach(function (s) {
     if (!s.date || s.outcome) return;
     const start = mkEventStartMs({ date: s.date, time: s.time || '09:00' });
     if (!start) return;
     schedule(s.id, start - 15 * 60e3, 'جلسة محكمة', (s.prep || s.notes || 'جلسة قادمة'), 'sess15');
   });
 
-  tasks.forEach(t => {
+  tasks.forEach(function (t) {
     if (!t.due || t.status === 'منتهية') return;
     const start = mkEventStartMs({ date: t.due, time: '09:00' });
     if (!start) return;
     schedule('task-' + t.id, start - 60 * 60e3, 'مهمة مستحقة', t.title || t.desc || '', 'task60');
   });
 }
+
+
+
+// ===================== ملخص يومي + هدوء + تكرار مواعيد =====================
+const MK_ALERT_PREFS = 'mk_alert_prefs_v1';
+
+function mkDefaultAlertPrefs() {
+  return {
+    dailyOn: true,
+    dailyTime: '08:00',
+    quietOn: false,
+    quietStart: '22:00',
+    quietEnd: '07:00',
+    lastDailyKey: ''
+  };
+}
+
+function mkGetAlertPrefs() {
+  try {
+    return Object.assign(mkDefaultAlertPrefs(), JSON.parse(localStorage.getItem(MK_ALERT_PREFS) || '{}'));
+  } catch (e) {
+    return mkDefaultAlertPrefs();
+  }
+}
+
+function mkSaveAlertPrefs() {
+  const p = mkGetAlertPrefs();
+  p.dailyOn = !!(document.getElementById('mkDailySummaryOn') || {}).checked;
+  p.dailyTime = (document.getElementById('mkDailySummaryTime') || {}).value || '08:00';
+  p.quietOn = !!(document.getElementById('mkQuietOn') || {}).checked;
+  p.quietStart = (document.getElementById('mkQuietStart') || {}).value || '22:00';
+  p.quietEnd = (document.getElementById('mkQuietEnd') || {}).value || '07:00';
+  localStorage.setItem(MK_ALERT_PREFS, JSON.stringify(p));
+  const st = document.getElementById('mkAlertPrefsStatus');
+  if (st) st.textContent = 'تم الحفظ — الملخص: ' + (p.dailyOn ? p.dailyTime : 'معطّل') + ' | الهدوء: ' + (p.quietOn ? (p.quietStart + '→' + p.quietEnd) : 'معطّل');
+  toast('تم حفظ إعدادات التنبيه');
+  try { mkTickAlertPrefs(); } catch (e) {}
+}
+
+function mkLoadAlertPrefsUI() {
+  const p = mkGetAlertPrefs();
+  const a = document.getElementById('mkDailySummaryOn');
+  const b = document.getElementById('mkDailySummaryTime');
+  const c = document.getElementById('mkQuietOn');
+  const d = document.getElementById('mkQuietStart');
+  const e = document.getElementById('mkQuietEnd');
+  if (a) a.checked = !!p.dailyOn;
+  if (b) b.value = p.dailyTime || '08:00';
+  if (c) c.checked = !!p.quietOn;
+  if (d) d.value = p.quietStart || '22:00';
+  if (e) e.value = p.quietEnd || '07:00';
+  const st = document.getElementById('mkAlertPrefsStatus');
+  if (st) st.textContent = 'الملخص: ' + (p.dailyOn ? p.dailyTime : 'معطّل') + ' | الهدوء: ' + (p.quietOn ? (p.quietStart + '→' + p.quietEnd) : 'معطّل');
+}
+
+function mkTimeToMinutes(hhmm) {
+  if (!hhmm || hhmm.indexOf(':') < 0) return 0;
+  const p = hhmm.split(':');
+  return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+}
+
+function mkIsQuietHours() {
+  const p = mkGetAlertPrefs();
+  if (!p.quietOn) return false;
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const a = mkTimeToMinutes(p.quietStart);
+  const b = mkTimeToMinutes(p.quietEnd);
+  if (a === b) return false;
+  // عبر منتصف الليل
+  if (a > b) return cur >= a || cur < b;
+  return cur >= a && cur < b;
+}
+
+function mkToggleRepeatUntil() {
+  const v = (document.getElementById('eventRepeat') || {}).value || 'none';
+  const w = document.getElementById('eventRepeatUntilWrap');
+  if (w) w.style.display = v === 'none' ? 'none' : 'block';
+}
+
+function mkExpandRecurringEvent(base) {
+  const rule = base.repeat || 'none';
+  if (!rule || rule === 'none') return [base];
+  const until = base.repeatUntil || base.date;
+  if (!until || until < base.date) return [base];
+  const out = [];
+  const seen = {};
+  let cur = base.date;
+  let guard = 0;
+  while (cur <= until && guard < 370) {
+    guard++;
+    if (!seen[cur]) {
+      seen[cur] = 1;
+      const copy = Object.assign({}, base, {
+        id: guard === 1 ? base.id : (base.id + '-r' + guard + '-' + cur),
+        date: cur,
+        seriesId: base.seriesId || base.id,
+        isRepeatInstance: guard > 1
+      });
+      out.push(copy);
+    }
+    const [y, m, d] = cur.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (rule === 'daily') dt.setDate(dt.getDate() + 1);
+    else if (rule === 'weekly') dt.setDate(dt.getDate() + 7);
+    else if (rule === 'monthly') dt.setMonth(dt.getMonth() + 1);
+    else break;
+    const pad = n => String(n).padStart(2, '0');
+    cur = dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+  }
+  return out.length ? out : [base];
+}
+
+function mkBuildDailySummaryText() {
+  const today = (typeof isoToday === 'function') ? isoToday() : new Date().toISOString().slice(0, 10);
+  let sessions = [], events = [], tasks = [];
+  try {
+    sessions = (DB.get('sessions') || []).filter(s => s.date === today);
+    events = (DB.get('events') || []).filter(e => e.date === today && e.status !== 'ملغى');
+    tasks = (DB.get('tasks') || []).filter(t => t.due && t.due <= today && t.status !== 'منتهية');
+  } catch (e) {}
+  const lines = [];
+  lines.push('ملخص اليوم ' + today);
+  lines.push('جلسات: ' + sessions.length);
+  lines.push('مواعيد: ' + events.length);
+  lines.push('مهام مستحقة/متأخرة: ' + tasks.length);
+  if (sessions[0]) {
+    const c = (DB.get('cases') || []).find(x => x.id === sessions[0].caseId);
+    lines.push('أول جلسة: ' + (c ? (c.number || c.subject) : sessions[0].prep || '—'));
+  }
+  if (events[0]) lines.push('أول موعد: ' + (events[0].desc || events[0].type || ''));
+  if (tasks[0]) lines.push('مهمة: ' + (tasks[0].title || ''));
+  return { title: 'مكتبي — ملخص اليوم', body: lines.join(' · '), counts: { sessions: sessions.length, events: events.length, tasks: tasks.length } };
+}
+
+function mkRunDailySummary(force) {
+  if (mkIsQuietHours() && !force) {
+    try { mkInAppAlert('هدوء', 'تم تأجيل الملخص اليومي لخارج ساعات الهدوء.'); } catch (e) {}
+    return;
+  }
+  const s = mkBuildDailySummaryText();
+  try { mkInAppAlert(s.title, s.body, { kind: 'daily' }); } catch (e) {}
+  try {
+    if (typeof mkShowNotification === 'function' && mkNotifSupported() && Notification.permission === 'granted') {
+      // تجاوز الهدوء فقط عند force عبر استدعاء مباشر للطبقة السفلية إن لزم
+      mkShowNotification(s.title, s.body, 'mk-daily-' + (typeof isoToday === 'function' ? isoToday() : ''));
+    }
+  } catch (e) {}
+  toast('تم إعداد ملخص اليوم');
+}
+
+function mkTickAlertPrefs() {
+  const p = mkGetAlertPrefs();
+  if (!p.dailyOn) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const key = (typeof isoToday === 'function' ? isoToday() : now.toISOString().slice(0, 10)) + 'T' + (p.dailyTime || '08:00');
+  const cur = hh + ':' + mm;
+  if (cur !== (p.dailyTime || '08:00')) return;
+  if (p.lastDailyKey === key) return;
+  if (mkIsQuietHours()) return;
+  p.lastDailyKey = key;
+  localStorage.setItem(MK_ALERT_PREFS, JSON.stringify(p));
+  mkRunDailySummary(false);
+}
+
+// Quiet hours gate — يُطبَّق بعد تعريف دوال التنبيه
+function mkInstallQuietGates() {
+  if (window._mkQuietGatesOn) return;
+  window._mkQuietGatesOn = true;
+  const _in = typeof mkInAppAlert === 'function' ? mkInAppAlert : null;
+  if (_in) {
+    window.mkInAppAlert = function (title, body, meta) {
+      if (mkIsQuietHours() && !(meta && meta.force)) {
+        try {
+          const log = mkInAppLogRead();
+          log.unshift({ id: 'q-' + Date.now(), title: title || 'تنبيه', body: (body || '') + ' (صامت — ساعات هدوء)', at: new Date().toISOString(), meta: meta || null });
+          mkInAppLogWrite(log);
+        } catch (e) {}
+        return null;
+      }
+      return _in(title, body, meta);
+    };
+  }
+  const _show = typeof mkShowNotification === 'function' ? mkShowNotification : null;
+  if (_show) {
+    window.mkShowNotification = async function (title, body, tag) {
+      if (mkIsQuietHours()) {
+        try {
+          const log = mkInAppLogRead();
+          log.unshift({ id: 'qs-' + Date.now(), title: title || 'تنبيه', body: (body || '') + ' (مؤجل — ساعات هدوء)', at: new Date().toISOString(), meta: { tag: tag } });
+          mkInAppLogWrite(log);
+        } catch (e) {}
+        return false;
+      }
+      return _show(title, body, tag);
+    };
+  }
+}
+setTimeout(mkInstallQuietGates, 0);
+document.addEventListener('DOMContentLoaded', function () { setTimeout(mkInstallQuietGates, 100); });
+
+if (!window._mkAlertPrefsTimer) {
+  window._mkAlertPrefsTimer = setInterval(function () {
+    try { mkTickAlertPrefs(); } catch (e) {}
+  }, 30000);
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+      try { mkLoadAlertPrefsUI(); } catch (e) {}
+      try { mkTickAlertPrefs(); } catch (e) {}
+    }, 1200);
+  });
+}
+
+
+// ===================== PHASE A2: مركز تنبيهات داخل التطبيق =====================
+const MK_INAPP_LOG = 'mk_inapp_alert_log';
+
+function mkInAppLogRead() {
+  try { return JSON.parse(localStorage.getItem(MK_INAPP_LOG) || '[]'); } catch (e) { return []; }
+}
+function mkInAppLogWrite(arr) {
+  localStorage.setItem(MK_INAPP_LOG, JSON.stringify(arr.slice(0, 40)));
+}
+
+function mkInAppAlert(title, body, meta) {
+  const item = {
+    id: 'ia-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+    title: title || 'تنبيه',
+    body: body || '',
+    at: new Date().toISOString(),
+    meta: meta || null
+  };
+  const log = mkInAppLogRead();
+  log.unshift(item);
+  mkInAppLogWrite(log);
+  try {
+    const t = document.getElementById('mkInAppToast');
+    if (t) {
+      t.textContent = item.title + (item.body ? ' — ' + item.body : '');
+      t.classList.add('show');
+      clearTimeout(window._mkInAppToastTimer);
+      window._mkInAppToastTimer = setTimeout(function () { t.classList.remove('show'); }, 4500);
+    }
+  } catch (e) {}
+  try { toast(item.title); } catch (e) {}
+  try { mkRenderAlertPanel(); } catch (e) {}
+  return item;
+}
+
+function mkCollectUpcoming(limit) {
+  limit = limit || 12;
+  const now = Date.now();
+  const items = [];
+  try {
+    if (typeof DB === 'undefined' || !DB.get) return items;
+    const today = (typeof isoToday === 'function') ? isoToday() : new Date().toISOString().slice(0, 10);
+    (DB.get('events') || []).forEach(function (e) {
+      if (!e.date || e.status === 'ملغى' || e.status === 'مكتمل') return;
+      if (e.date < today) return;
+      const start = typeof mkEventStartMs === 'function' ? mkEventStartMs(e) : null;
+      items.push({
+        kind: 'event',
+        id: e.id,
+        sort: start || (e.date + 'T99'),
+        title: e.type || 'موعد',
+        body: (e.desc || '') + (e.place ? ' — ' + e.place : ''),
+        when: e.date + (e.time ? ' · ' + e.time : ''),
+        action: function () { try { openEventModal(e.id); } catch (err) {} }
+      });
+    });
+    (DB.get('sessions') || []).forEach(function (s) {
+      if (!s.date || s.outcome) return;
+      if (s.date < today) return;
+      const c = (DB.get('cases') || []).find(function (x) { return x.id === s.caseId; });
+      const start = typeof mkEventStartMs === 'function' ? mkEventStartMs({ date: s.date, time: s.time || '09:00' }) : null;
+      items.push({
+        kind: 'session',
+        id: s.id,
+        sort: start || (s.date + 'T09'),
+        title: 'جلسة محكمة',
+        body: c ? ((c.number || '') + ' — ' + (c.subject || '')) : (s.prep || 'جلسة'),
+        when: s.date + (s.time ? ' · ' + s.time : ''),
+        action: function () { try { openSessionModal({ id: s.id }); } catch (err) {} }
+      });
+    });
+    (DB.get('tasks') || []).forEach(function (t) {
+      if (!t.due || t.status === 'منتهية') return;
+      items.push({
+        kind: 'task',
+        id: t.id,
+        sort: t.due + 'T08',
+        title: t.due < today ? 'مهمة متأخرة' : 'مهمة',
+        body: t.title || t.desc || '',
+        when: t.due,
+        action: function () { try { showPage('tasks'); } catch (err) {} }
+      });
+    });
+  } catch (e) {}
+  items.sort(function (a, b) { return String(a.sort).localeCompare(String(b.sort)); });
+  return items.slice(0, limit);
+}
+
+function mkRenderAlertPanel() {
+  const up = document.getElementById('mkAlertUpcoming');
+  const logEl = document.getElementById('mkAlertLog');
+  const badge = document.getElementById('mkBellBadge');
+  if (!up || !logEl) return;
+  const upcoming = mkCollectUpcoming(15);
+  if (!upcoming.length) {
+    up.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">لا تذكيرات قادمة مسجّلة.</p>';
+  } else {
+    up.innerHTML = upcoming.map(function (it, i) {
+      return '<div class="mk-alert-item" data-idx="' + i + '"><div class="t">' + esc(it.title) + '</div>' +
+        '<div class="b">' + esc(it.body) + '</div><div class="when">' + esc(it.when) + '</div></div>';
+    }).join('');
+    up.querySelectorAll('.mk-alert-item').forEach(function (el) {
+      el.addEventListener('click', function () {
+        const idx = parseInt(el.getAttribute('data-idx'), 10);
+        if (upcoming[idx] && upcoming[idx].action) upcoming[idx].action();
+        mkToggleAlertPanel(null, false);
+      });
+    });
+  }
+  const log = mkInAppLogRead();
+  if (!log.length) {
+    logEl.innerHTML = '<p style="color:var(--text-muted);font-size:12px;">لا تنبيهات داخلية بعد. جرّب «تذكير بعد 10 ثوانٍ».</p>';
+  } else {
+    logEl.innerHTML = log.slice(0, 12).map(function (it) {
+      const when = it.at ? new Date(it.at).toLocaleString('ar-EG') : '';
+      return '<div class="mk-alert-item"><div class="t">' + esc(it.title) + '</div>' +
+        '<div class="b">' + esc(it.body) + '</div><div class="when">' + esc(when) + '</div></div>';
+    }).join('');
+  }
+  const n = upcoming.filter(function (x) {
+    const today = (typeof isoToday === 'function') ? isoToday() : '';
+    return String(x.when).indexOf(today) === 0 || x.title.indexOf('متأخر') >= 0;
+  }).length + (log.length ? 1 : 0);
+  if (badge) {
+    if (upcoming.length) {
+      badge.textContent = String(Math.min(upcoming.length, 99));
+      badge.classList.add('show');
+    } else {
+      badge.classList.remove('show');
+    }
+  }
+}
+
+function mkToggleAlertPanel(ev, force) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  const panel = document.getElementById('mkAlertPanel');
+  if (!panel) return;
+  const open = force === false ? false : force === true ? true : !panel.classList.contains('open');
+  if (open) {
+    mkRenderAlertPanel();
+    panel.classList.add('open');
+  } else {
+    panel.classList.remove('open');
+  }
+}
+
+function mkTestInAppReminder() {
+  mkInAppAlert('تجربة تذكير', 'سيصلك تنبيه داخل التطبيق بعد 10 ثوانٍ (يعمل حتى بدون إذن نظام).');
+  setTimeout(function () {
+    mkInAppAlert('⏰ تذكير تجريبي', 'مرّت 10 ثوانٍ — مركز التنبيهات داخل التطبيق يعمل.');
+    try {
+      if (typeof mkShowNotification === 'function' && mkNotifSupported() && Notification.permission === 'granted') {
+        mkShowNotification('مكتبي — تذكير تجريبي', 'تذكير بعد 10 ثوانٍ (إشعار نظام إن كان مسموحًا).', 'mk-inapp-10s');
+      }
+    } catch (e) {}
+  }, 10000);
+  toast('تم جدولة تذكير بعد 10 ثوانٍ');
+}
+
+document.addEventListener('click', function (e) {
+  const panel = document.getElementById('mkAlertPanel');
+  const wrap = e.target && e.target.closest ? e.target.closest('.mk-bell-wrap') : null;
+  if (panel && panel.classList.contains('open') && !wrap) {
+    panel.classList.remove('open');
+  }
+});
+
+// ربط إشعار النظام بسجل داخل التطبيق
+(function () {
+  const _show = typeof mkShowNotification === 'function' ? mkShowNotification : null;
+  if (!_show) return;
+  window.mkShowNotification = async function (title, body, tag) {
+    try { mkInAppAlert(title, body, { tag: tag, source: 'system' }); } catch (e) {}
+    return _show(title, body, tag);
+  };
+})();
+
 
 function mkIcsEscape(s) {
   return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
@@ -7352,6 +8133,34 @@ function mkDownloadIcsForEventId(id) {
   a.click();
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
   toast('تم تنزيل ملف التقويم — افتحه من تطبيق التقويم على جهازك');
+}
+
+
+function mkDownloadIcsForSession(id) {
+  const s = DB.get('sessions').find(x => x.id === id);
+  if (!s) return alert('الجلسة غير موجودة');
+  const c = s.caseId ? DB.get('cases').find(x => x.id === s.caseId) : null;
+  const fake = {
+    id: 'sess-' + s.id,
+    date: s.date,
+    time: s.time || '09:00',
+    type: 'جلسة محكمة',
+    desc: (c ? ((c.number || '') + ' — ' + (c.subject || '')) : 'جلسة') + (s.prep ? ' | ' + s.prep : ''),
+    place: c ? [c.court, c.circuit].filter(Boolean).join(' — ') : '',
+    notes: s.notes || s.outcome || '',
+    remindMins: 15,
+    caseId: s.caseId || null
+  };
+  const ics = mkBuildIcs(fake);
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'maktaby-session-' + (s.date || 'day') + '-' + String(s.id).slice(0, 8) + '.ics';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 500);
+  toast('تم تنزيل ملف الجلسة للتقويم');
 }
 
 function mkExportEventIcs() {
@@ -7444,9 +8253,13 @@ document.addEventListener('DOMContentLoaded', function() {
   setTimeout(function() {
     try { mkUpdateNotifBanner(); } catch (e) {}
     try { mkScheduleLocalReminders(); } catch (e) {}
+    try { mkRenderAlertPanel(); } catch (e) {}
   }, 800);
 });
-window.addEventListener('focus', function() { try { mkScheduleLocalReminders(); } catch (e) {} });
+window.addEventListener('focus', function() {
+  try { mkScheduleLocalReminders(); } catch (e) {}
+  try { mkRenderAlertPanel(); } catch (e) {}
+});
 
 </script>
 <script src="mk-config.js"></script>
