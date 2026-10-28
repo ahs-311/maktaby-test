@@ -1,5 +1,5 @@
 /* مكتبي الإلكتروني — Service Worker (يعمل أونلاين وأوفلاين) */
-const VERSION = "maktabi-v1.8.3-libadmin";
+const VERSION = "maktabi-v1.9.0-notify-session";
 const CORE = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const CORE = [
   "./mk-cloud.js",
   "./mk-details.js",
   "./mk-editor.js",
+  "./mk-notify.js",
   "./vendor/jszip.min.js",
   "./icon-192.png",
   "./icon-512.png",

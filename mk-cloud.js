@@ -379,8 +379,44 @@
     }
   }
   window.mkGate = gate;
+  /* ---------------- صلاحية الجلسة ----------------
+     تُطلب كلمة المرور من جديد عند: تسجيل الخروج، أو إغلاق التطبيق/التبويب (sessionStorage تزول)،
+     أو عدم أي تفاعل 10 دقائق. إعادة تحميل الصفحة أو العودة للتطبيق ضمن المهلة لا تطلب الدخول. */
+  const IDLE_MS = 10 * 60 * 1000, SKEY = 'mk_app_session';
+  let lastAct = Date.now(), lastWrite = 0, idleTimer = null, sessionNotice = '', restoring = false;
+  const sget = () => { try { return JSON.parse(sessionStorage.getItem(SKEY) || 'null'); } catch { return null; } };
+  const sset = v => { try { if (v) sessionStorage.setItem(SKEY, JSON.stringify(v)); else sessionStorage.removeItem(SKEY); } catch { } };
+  function touch(force) {
+    const n = Date.now(); lastAct = n;
+    if (me && (force || n - lastWrite > 5000)) { lastWrite = n; sset({ u: me.username, t: n }); }
+  }
+  function forceLogout(msg) { sessionNotice = msg || ''; window.dqLogout(); }
+  function idleCheck() {
+    if (!me) return;
+    if (Date.now() - lastAct > IDLE_MS) forceLogout('انتهت الجلسة لعدم التفاعل أكثر من 10 دقائق. سجّل الدخول مرة أخرى.');
+  }
+  ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll', 'mousemove'].forEach(ev =>
+    window.addEventListener(ev, () => touch(false), { passive: true, capture: true }));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) idleCheck(); });
+  window.addEventListener('pageshow', idleCheck);
+  function startIdleWatch() { touch(true); if (!idleTimer) idleTimer = setInterval(idleCheck, 15000); }
+  function stopIdleWatch() { clearInterval(idleTimer); idleTimer = null; sset(null); }
+
   window.dqInitAuth = function () {
-    gate(Object.keys(LS.get('mk_offline_auth', {})).length ? 'login' : 'register');
+    const hasAccts = Object.keys(LS.get('mk_offline_auth', {})).length;
+    const rec = sget(), acct = rec && rec.u && LS.get('mk_offline_auth', {})[rec.u];
+    if (restoring) return;   // الدالة تُستدعى مرتين عند التحميل (index.html وهذا الملف)
+    if (acct && acct.profile && Date.now() - (rec.t || 0) < IDLE_MS) {
+      restoring = true; gate('login'); const m = $('dqAuthMessage'); if (m) m.textContent = 'جارٍ استعادة جلستك…';
+      lastAct = rec.t;
+      enter(acct.profile, acct.office, !navigator.onLine).then(startIdleWatch).catch(e => {
+        console.warn('restore session failed', e); sset(null); gate('login');
+      }).then(() => { restoring = false; });
+      return;
+    }
+    sset(null);
+    gate(hasAccts ? 'login' : 'register');
+    if (sessionNotice) { const m = $('dqAuthMessage'); if (m) m.textContent = sessionNotice; sessionNotice = ''; }
   };
   window.dqSubmitAuth = async function (ev) {
     ev.preventDefault();
@@ -476,6 +512,7 @@
 
   window.dqEnterApp = function () {
     origEnter();
+    startIdleWatch();
     if (me && me.role !== 'owner') { ensureBell(); renderSub(); }
     if (dqCurrentAccount && dqCurrentAccount.role === 'owner') {
       document.querySelectorAll('.nav-item[data-page]').forEach(b => { b.style.display = b.dataset.page === 'accounts' ? 'flex' : 'none'; });
@@ -485,7 +522,8 @@
   };
   window.dqLogout = function () {
     if (me && officeId()) { syncAll().catch(() => { }); }
-    stopSync(); me = null; hideSubUI(); annShown = false; anns = []; origLogout(); setStatus();
+    stopSync(); stopIdleWatch(); me = null; hideSubUI(); annShown = false; anns = []; origLogout(); setStatus();
+    if (sessionNotice) { const m = $('dqAuthMessage'); if (m) m.textContent = sessionNotice; sessionNotice = ''; }
   };
 
   /* ---------------- إدارة الحسابات (المدير) ---------------- */
