@@ -1174,6 +1174,7 @@ img,svg,video,canvas{max-width:100%}
 
     <div class="nav-section">الأدوات القانونية</div>
     <button class="nav-item" data-page="lawsuits"><span class="icon">⚖️</span> صحف الدعاوى (AI)</button>
+    <button class="nav-item" data-page="assistant"><span class="icon">🤖</span> المساعد الذكي</button>
     <button class="nav-item" data-page="conflict"><span class="icon">🔎</span> فحص التعارض</button>
     <button class="nav-item" data-page="calculators"><span class="icon">🧮</span> الحاسبات</button>
     <button class="nav-item" data-page="deadlines"><span class="icon">⏱️</span> المدد القانونية</button>
@@ -1234,6 +1235,7 @@ img,svg,video,canvas{max-width:100%}
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('agenda')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('agenda')"><div class="icon">📅</div><div class="label">جلسات هذا الأسبوع</div><div class="value" id="statSessions">0</div></div>
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('calendar')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('calendar')"><div class="icon">⚠️</div><div class="label">مواعيد قريبة (7 أيام)</div><div class="value" id="statDeadlines">0</div></div>
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('billing')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('billing')"><div class="icon">💰</div><div class="label">فواتير معلقة</div><div class="value" id="statInvoices">0</div></div>
+        <div class="stat-card" role="button" tabindex="0" onclick="showPage('assistant')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('assistant')"><div class="icon">🤖</div><div class="label">المساعد الذكي</div><div class="value" style="font-size:14px;">محلي+خارجي</div></div>
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('cases')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('cases')"><div class="icon">✅</div><div class="label">قضايا منتهية</div><div class="value" id="statClosed">0</div></div>
       </div>
 
@@ -1767,7 +1769,8 @@ img,svg,video,canvas{max-width:100%}
         <p style="margin-bottom:12px;">بحث عميق داخل نصوص القوانين مادةً بمادة (وليس العناوين فقط)، مع مرادفات قانونية وربط تلقائي بملفات القضايا.</p>
         <div class="ai-input-row">
           <input type="text" id="libraryQuery" placeholder="مثال: المادة 63 مرافعات / التقادم / قانون المحاماة / الإيجار..." onkeydown="if(event.key==='Enter')searchLibrary()" />
-          <button type="button" onclick="searchLibrary()">بحث</button>
+          <button type="button" onclick="searchLibrary()">بحث محلي</button>
+          <button type="button" class="btn btn-outline" onclick="mkLibraryExternalExpand()" title="يتطلب Gemini من الإعدادات">بحث موسّع (خارجي)</button>
         </div>
       </div>
       <div class="chip-row" id="libraryChips" style="margin-bottom:12px;"></div>
@@ -1798,7 +1801,48 @@ img,svg,video,canvas{max-width:100%}
     </div>
 
     <!-- FORMS -->
-    <div class="page" id="page-forms">
+    <div class="page" 
+    <!-- ASSISTANT: هجين محلي + خارجي -->
+    <div class="page" id="page-assistant">
+      <div class="ai-box">
+        <h2>🤖 المساعد الذكي — محلي + خارجي</h2>
+        <p style="margin-bottom:10px;">يبحث في مكتبتك وقضاياك محليًا، ويمكنه الاستعانة بـ Gemini عند تفعيل المفتاح في الإعدادات لتنظيم المكتب والتحليل والبحث الأوسع.</p>
+        <div id="mkAiStatus" style="font-size:13px;margin-bottom:12px;opacity:0.95;"></div>
+        <div class="ai-input-row">
+          <input type="text" id="mkAiQuery" placeholder="مثال: نظّم يومي غدًا / ما المواد المناسبة لدعوى نفقة؟ / لخّص قضايا الأسبوع..." onkeydown="if(event.key==='Enter')mkAiAsk()" />
+          <button type="button" onclick="mkAiAsk()">اسأل المساعد</button>
+        </div>
+      </div>
+      <div class="chip-row" style="margin-top:10px;">
+        <span class="chip" onclick="mkAiPreset('organize_today')">نظم يومي اليوم</span>
+        <span class="chip" onclick="mkAiPreset('week_cases')">ملخص قضايا الأسبوع</span>
+        <span class="chip" onclick="mkAiPreset('tasks_priority')">أولويات المهام</span>
+        <span class="chip" onclick="mkAiPreset('library_help')">ابحث في المكتبة عن نفقة</span>
+        <span class="chip" onclick="mkAiPreset('conflict_hint')">كيف أفحص التعارض؟</span>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="card-header"><h2>النتيجة</h2></div>
+        <div class="card-body">
+          <div id="mkAiResult" style="white-space:pre-wrap;line-height:1.85;font-size:14px;min-height:120px;color:var(--text-muted);">اكتب سؤالك أو اختر اختصارًا أعلاه. بدون مفتاح Gemini يعمل الوضع المحلي فقط (مكتبة + بيانات المكتب).</div>
+          <div id="mkAiLocalHits" style="margin-top:14px;"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="card-header"><h2>روابط سريعة لأقسام المكتب</h2></div>
+        <div class="card-body" style="display:flex;flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="showPage('courtday')">يوم المحكمة</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('agenda')">الأجندة</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('tasks')">المهام</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('cases')">القضايا</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('library')">المكتبة</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('lawsuits')">صحف الدعاوى</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('conflict')">فحص التعارض</button>
+          <button class="btn btn-outline btn-sm" onclick="showPage('settings')">إعدادات Gemini</button>
+        </div>
+      </div>
+    </div>
+
+id="page-forms">
       <div class="calc-grid">
         <div class="calc-card" onclick="showFormTemplate('إنذار على يد محضر')"><div class="icon">📢</div><h3>إنذار على يد محضر</h3><p>نموذج إنذار رسمي</p></div>
         <div class="calc-card" onclick="showFormTemplate('طلب استخراج شهادة')"><div class="icon">📜</div><h3>طلب استخراج شهادة</h3><p>نموذج طلب رسمي</p></div>
@@ -1842,7 +1886,37 @@ img,svg,video,canvas{max-width:100%}
 
     <!-- SETTINGS -->
     <div class="page" id="page-settings">
-      <div class="two-col">
+      
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><h2>🤖 الذكاء الاصطناعي الخارجي (Gemini)</h2></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+              اختياري. عند إدخال مفتاح Gemini يعمل المساعد والبحث الموسّع وتوليد الصحف عبر الذكاء الخارجي مع الإبقاء على البحث المحلي في المكتبة.
+              المفتاح يُحفظ في هذا الجهاز فقط (localStorage) ولا يُرفع إلى Supabase.
+            </p>
+            <div class="form-group">
+              <label>مفتاح Gemini API</label>
+              <input type="password" id="mkGeminiKey" placeholder="AIza..." autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label>النموذج</label>
+              <select id="mkGeminiModel">
+                <option value="gemini-flash-latest">gemini-flash-latest (موصى به)</option>
+                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><input type="checkbox" id="mkGeminiEnabled" /> تفعيل الذكاء الخارجي عند توفر الإنترنت</label>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="mkAiSaveSettings()">حفظ إعدادات الذكاء</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="mkAiTestConnection()">اختبار الاتصال</button>
+            </div>
+            <p id="mkGeminiSaveMsg" style="margin-top:10px;font-size:13px;"></p>
+          </div>
+        </div>
+<div class="two-col">
         <div class="card">
           <div class="card-header"><h2>maktaby+ — النسخ الاحتياطي واستيراد/تصدير البيانات</h2></div>
           <div class="card-body">
@@ -5142,11 +5216,21 @@ function generateLawsuit() {
   actions.style.display = 'none';
   result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري البحث العميق داخل مواد المكتبة وإعداد المسودة...</div>';
 
-  setTimeout(() => {
+  setTimeout(async () => {
     const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q + ' ' + details, { limit: 6 }) : [];
-    const draft = (window.MK_SMART && MK_SMART.buildLawsuitDraft)
+    let draft = (window.MK_SMART && MK_SMART.buildLawsuitDraft)
       ? MK_SMART.buildLawsuitDraft(q, details, hits)
       : lawsuitText(q, details);
+    // تحسين خارجي اختياري
+    if (window.MK_AI && MK_AI.isExternalReady()) {
+      try {
+        result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري تحسين المسودة عبر Gemini مع المراجع المحلية...</div>';
+        const enhanced = await MK_AI.enhanceLawsuit(q, details, draft, hits);
+        if (enhanced && enhanced.length > 80) draft = enhanced;
+      } catch (e) {
+        console.warn('Gemini lawsuit enhance failed', e);
+      }
+    }
     window.__curLawsuit = { q, details, hits, draft };
     // عرض المسودة + بطاقات المصادر
     let html = '<pre style="white-space:pre-wrap;font-family:Tahoma,Arial;line-height:1.85;margin:0;font-size:14px;">' +
@@ -5719,6 +5803,306 @@ ${basis}
     SYNONYMS
   };
 })();
+
+// ===================== MK_AI — هجين: محلي (MK_SMART) + خارجي (Gemini) =====================
+window.MK_AI = (function () {
+  const LS_KEY = 'mk_ai_settings_v1';
+
+  function loadSettings() {
+    try {
+      return JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {};
+    } catch (e) { return {}; }
+  }
+  function saveSettings(s) {
+    localStorage.setItem(LS_KEY, JSON.stringify(s || {}));
+  }
+  function getSettings() {
+    const s = loadSettings();
+    return {
+      key: (s.key || '').trim(),
+      model: s.model || 'gemini-flash-latest',
+      enabled: !!s.enabled
+    };
+  }
+  function isExternalReady() {
+    const s = getSettings();
+    return !!(s.enabled && s.key && navigator.onLine);
+  }
+  function statusText() {
+    const s = getSettings();
+    if (!s.enabled) return 'الوضع الحالي: محلي فقط (مكتبة + بيانات المكتب). فعّل Gemini من الإعدادات للبحث الخارجي.';
+    if (!s.key) return 'الوضع الحالي: محلي — لم يُحفظ مفتاح Gemini بعد.';
+    if (!navigator.onLine) return 'الوضع الحالي: محلي (لا يوجد اتصال بالإنترنت).';
+    return 'الوضع الحالي: هجين — محلي + Gemini (' + (s.model || '') + ') عند الحاجة.';
+  }
+
+  function collectOfficeContext(limit) {
+    limit = limit || 12;
+    if (!window.DB || !DB.get) return { summary: 'لا توجد قاعدة بيانات محلية.', cases: [], tasks: [], events: [] };
+    const cases = (DB.get('cases') || []).slice(0, 30);
+    const tasks = (DB.get('tasks') || []).filter(t => t.status !== 'منتهية').slice(0, 20);
+    const today = (typeof isoToday === 'function' ? isoToday() : new Date().toISOString().slice(0, 10));
+    const events = (DB.get('events') || []).filter(e => (e.date || '') >= today).slice(0, 20);
+    const sessions = (DB.get('sessions') || []).filter(s => (s.date || '') >= today).slice(0, 20);
+    const lines = [];
+    lines.push('تاريخ اليوم: ' + today);
+    lines.push('عدد القضايا: ' + (DB.get('cases') || []).length + ' | مهام مفتوحة: ' + tasks.length);
+    cases.slice(0, limit).forEach(c => {
+      lines.push('- قضية ' + (c.number || 'بدون رقم') + ' | ' + (c.subject || '') + ' | نوع:' + (c.type || '') + ' | حالة:' + (c.status || '') + ' | مرحلة:' + (c.stage || ''));
+    });
+    tasks.slice(0, 8).forEach(t => {
+      lines.push('- مهمة: ' + (t.title || '') + ' | استحقاق:' + (t.due || '') + ' | ' + (t.status || ''));
+    });
+    events.slice(0, 8).forEach(e => {
+      lines.push('- موعد: ' + (e.date || '') + ' ' + (e.time || '') + ' | ' + (e.desc || e.type || ''));
+    });
+    sessions.slice(0, 8).forEach(s => {
+      lines.push('- جلسة: ' + (s.date || '') + ' | قضية:' + (s.caseId || '') + ' | ' + (s.outcome || s.notes || ''));
+    });
+    return { summary: lines.join('\n'), cases, tasks, events, sessions, today };
+  }
+
+  async function callGemini(userPrompt, systemExtra) {
+    const s = getSettings();
+    if (!s.key) throw new Error('لا يوجد مفتاح Gemini');
+    const model = s.model || 'gemini-flash-latest';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+    const system = 'أنت مساعد قانوني لمكتب محاماة مصري داخل تطبيق «مكتبي الإلكتروني». أجب بالعربية الفصحى الواضحة. اعتمد أولاً على سياق المكتب والمكتبة المحلية المرفق. لا تختلق أرقام مواد غير موجودة في السياق؛ إن لم تجد، صرّح بذلك واقترح مراجعة المكتبة أو النص الرسمي. للبحث الخارجي استخدم معرفتك العامة بالقانون المصري مع التنبيه أنها للاستئناس وليست بديلاً عن النص الرسمي.'
+      + (systemExtra ? ('\n' + systemExtra) : '');
+    const body = {
+      contents: [{ role: 'user', parts: [{ text: system + '\n\n---\n\n' + userPrompt }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
+    };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-goog-api-key': s.key
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const errTxt = await res.text().catch(() => '');
+      throw new Error('Gemini خطأ ' + res.status + ': ' + errTxt.slice(0, 220));
+    }
+    const data = await res.json();
+    const content = (((data || {}).candidates || [])[0] || {}).content;
+    const parts = (content && content.parts) || [];
+    const out = parts.map(p => p.text || '').join('\n').trim();
+    if (!out) throw new Error('رد فارغ من Gemini');
+    return out;
+  }
+
+  function localAnswer(query) {
+    const q = (query || '').trim();
+    const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q, { limit: 8, deep: true }) : [];
+    const ctx = collectOfficeContext(8);
+    const lines = [];
+    lines.push('【وضع محلي — بدون خادم خارجي】');
+    lines.push('');
+    // heuristics for organize
+    const nq = (window.MK_SMART && MK_SMART.normalize) ? MK_SMART.normalize(q) : q;
+    if (/نظم|يوم|اجند|أجند|مهام|اولوي|أولوي/.test(nq)) {
+      lines.push('ملخص تنظيمي من بيانات مكتبك:');
+      lines.push(ctx.summary);
+      lines.push('');
+      lines.push('اقتراحات محلية:');
+      lines.push('1) راجع «يوم المحكمة» للجلسات اليوم/غدًا وسجّل النتائج.');
+      lines.push('2) أغلق أو أجّل المهام المتأخرة من قسم المهام.');
+      lines.push('3) افتح القضايا ذات الجلسة الأقرب وحدّث المرحلة.');
+    } else {
+      lines.push('نتائج من المكتبة المحلية (بحث عميق في المواد):');
+      if (!hits.length) lines.push('لا نتائج قوية في المكتبة لهذا الاستعلام.');
+      hits.forEach((h, i) => {
+        lines.push((i + 1) + ') ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + (h.category ? ' [' + h.category + ']' : ''));
+        if (h.snip) lines.push('   ' + h.snip);
+      });
+      lines.push('');
+      lines.push('لتحليل أوسع أو صياغة أذكى: فعّل Gemini من الإعدادات.');
+    }
+    return { text: lines.join('\n'), hits: hits };
+  }
+
+  async function ask(query, opts) {
+    opts = opts || {};
+    const q = (query || '').trim();
+    if (!q) throw new Error('اكتب سؤالاً');
+    const local = localAnswer(q);
+    if (!isExternalReady() || opts.localOnly) {
+      return { mode: 'local', text: local.text, hits: local.hits };
+    }
+    const ctx = collectOfficeContext(15);
+    const libBlock = (local.hits || []).slice(0, 6).map((h, i) =>
+      (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + '\n' + (h.snip || '')
+    ).join('\n');
+    const prompt = 'سؤال المستخدم:\n' + q + '\n\nسياق المكتب المحلي:\n' + ctx.summary +
+      '\n\nمقتطفات من المكتبة القانونية المحلية (بحث عميق):\n' + (libBlock || 'لا نتائج') +
+      '\n\nالمطلوب: أجب بشكل عملي لتنظيم العمل أو التحليل القانوني. إن كان السؤال بحثًا قانونيًا فادمج المواد المحلية مع معرفتك العامة مع التنبيه للتحقق من النص الرسمي.';
+    try {
+      const external = await callGemini(prompt);
+      return {
+        mode: 'hybrid',
+        text: '【هجين: محلي + Gemini】\n\n' + external + '\n\n——\nمراجع محلية مُرّرت للنموذج:\n' + (libBlock || 'لا شيء'),
+        hits: local.hits
+      };
+    } catch (e) {
+      return {
+        mode: 'local-fallback',
+        text: local.text + '\n\n⚠️ تعذر الذكاء الخارجي: ' + (e.message || e) + '\nتم عرض النتيجة المحلية.',
+        hits: local.hits
+      };
+    }
+  }
+
+  async function enhanceLawsuit(q, details, localDraft, hits) {
+    if (!isExternalReady()) return null;
+    const libBlock = (hits || []).slice(0, 6).map((h, i) =>
+      (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + '\n' + (h.snip || '')
+    ).join('\n');
+    const prompt = 'حسّن مسودة صحيفة الدعوى التالية لمكتب محاماة مصري. أبقِ الخانات {{...}} كما هي. قوّي الوقائع والسند والطلبات دون اختلاق مواد غير مذكورة في المراجع.\n\nنوع/موضوع: ' + q +
+      '\nتفاصيل: ' + (details || '') +
+      '\n\nمراجع محلية:\n' + libBlock +
+      '\n\nالمسودة الحالية:\n' + localDraft;
+    return await callGemini(prompt);
+  }
+
+  return {
+    loadSettings, saveSettings, getSettings, isExternalReady, statusText,
+    collectOfficeContext, callGemini, localAnswer, ask, enhanceLawsuit
+  };
+})();
+
+function mkAiRefreshStatus() {
+  const el = document.getElementById('mkAiStatus');
+  if (el && window.MK_AI) el.textContent = MK_AI.statusText();
+  // load settings fields if present
+  const s = window.MK_AI ? MK_AI.getSettings() : {};
+  const k = document.getElementById('mkGeminiKey');
+  const m = document.getElementById('mkGeminiModel');
+  const e = document.getElementById('mkGeminiEnabled');
+  if (k && !k.dataset.loaded) { k.value = s.key || ''; k.dataset.loaded = '1'; }
+  if (m && s.model) m.value = s.model;
+  if (e) e.checked = !!s.enabled;
+}
+
+function mkAiSaveSettings() {
+  const key = (document.getElementById('mkGeminiKey') || {}).value || '';
+  const model = (document.getElementById('mkGeminiModel') || {}).value || 'gemini-2.0-flash';
+  const enabled = !!(document.getElementById('mkGeminiEnabled') || {}).checked;
+  MK_AI.saveSettings({ key: key.trim(), model, enabled });
+  const msg = document.getElementById('mkGeminiSaveMsg');
+  if (msg) msg.textContent = 'تم حفظ إعدادات الذكاء على هذا الجهاز.';
+  mkAiRefreshStatus();
+  if (typeof toast === 'function') toast('تم حفظ إعدادات الذكاء');
+}
+
+async function mkAiTestConnection() {
+  const msg = document.getElementById('mkGeminiSaveMsg');
+  try {
+    mkAiSaveSettings();
+    if (!MK_AI.isExternalReady()) {
+      if (msg) msg.textContent = 'فعّل الخيار وأدخل المفتاح وتأكد من الإنترنت.';
+      return;
+    }
+    if (msg) msg.textContent = 'جاري اختبار Gemini...';
+    const t = await MK_AI.callGemini('قل فقط: الاتصال ناجح.');
+    if (msg) msg.textContent = '✅ ' + (t || 'الاتصال ناجح').slice(0, 120);
+  } catch (e) {
+    if (msg) msg.textContent = '❌ فشل الاختبار: ' + (e.message || e);
+  }
+}
+
+function mkAiPreset(kind) {
+  const map = {
+    organize_today: 'نظم يوم عملي اليوم: الجلسات والمواعيد والمهام المتأخرة وما يجب إنجازه قبل الغد.',
+    week_cases: 'لخّص قضايا المكتب النشطة وأبرز ما يحتاج متابعة هذا الأسبوع.',
+    tasks_priority: 'رتّب المهام المفتوحة حسب الأولوية القانونية والمواعيد.',
+    library_help: 'ما أهم المواد القانونية المتعلقة بدعوى النفقة الزوجية من المكتبة والسياق المصري؟',
+    conflict_hint: 'كيف أستخدم فحص التعارض قبل قبول موكل جديد؟ وما الحقول التي يجب البحث فيها؟'
+  };
+  const el = document.getElementById('mkAiQuery');
+  if (el) el.value = map[kind] || kind;
+  mkAiAsk();
+}
+
+
+
+async function mkLibraryExternalExpand() {
+  const q = ((document.getElementById('libraryQuery') || {}).value || '').trim();
+  if (!q) return alert('اكتب كلمة البحث أولاً');
+  // أولاً بحث محلي عميق
+  searchLibrary();
+  const result = document.getElementById('libraryResult');
+  if (!window.MK_AI || !MK_AI.isExternalReady()) {
+    if (result) {
+      const note = document.createElement('div');
+      note.style.cssText = 'margin:10px 0;padding:10px;border-radius:8px;background:var(--bg);font-size:13px;';
+      note.textContent = 'البحث الموسّع الخارجي يتطلب تفعيل Gemini من الإعدادات + اتصال إنترنت. تم تنفيذ البحث المحلي العميق.';
+      result.prepend(note);
+    }
+    return;
+  }
+  const boxId = 'mkLibExtBox';
+  let box = document.getElementById(boxId);
+  if (!box && result) {
+    box = document.createElement('div');
+    box.id = boxId;
+    box.style.cssText = 'margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:10px;';
+    result.prepend(box);
+  }
+  if (box) box.innerHTML = '<div style="color:var(--text-muted);">🤖 جاري البحث الموسّع عبر Gemini مع نتائج المكتبة المحلية...</div>';
+  try {
+    const localHits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q, { limit: 8, deep: true }) : [];
+    const libBlock = localHits.map((h, i) => (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + '\n' + (h.snip || '')).join('\n');
+    const prompt = 'أنت باحث قانوني مصري. استعلام المستخدم: «' + q + '»\n\nنتائج المكتبة المحلية داخل التطبيق:\n' + (libBlock || 'لا نتائج') +
+      '\n\nقدّم: 1) تلخيصًا موجزًا لما وجدته محليًا 2) مواد/مبادئ إضافية من معرفتك بالقانون المصري مع التنبيه أنها للاستئناس 3) خطوات عملية للمحامي. بالعربية.';
+    const ans = await MK_AI.callGemini(prompt);
+    if (box) {
+      box.innerHTML = '<div style="font-weight:700;color:var(--accent);margin-bottom:8px;">🌐 تحليل موسّع (Gemini + المكتبة المحلية)</div><div style="white-space:pre-wrap;line-height:1.8;font-size:14px;"></div>';
+      box.querySelector('div:last-child').textContent = ans;
+    }
+  } catch (e) {
+    if (box) box.textContent = 'فشل البحث الخارجي: ' + (e.message || e);
+  }
+}
+
+
+async function mkAiAsk() {
+  const q = ((document.getElementById('mkAiQuery') || {}).value || '').trim();
+  const result = document.getElementById('mkAiResult');
+  const hitsBox = document.getElementById('mkAiLocalHits');
+  if (!q) return alert('اكتب سؤالاً');
+  if (result) result.textContent = 'جاري التحليل (محلي' + (MK_AI.isExternalReady() ? ' + خارجي' : '') + ')...';
+  if (hitsBox) hitsBox.innerHTML = '';
+  try {
+    const r = await MK_AI.ask(q);
+    if (result) result.textContent = r.text || '';
+    if (hitsBox && r.hits && r.hits.length) {
+      hitsBox.innerHTML = '<div style="font-weight:700;margin-bottom:8px;color:var(--accent);">📚 مراجع من المكتبة المحلية</div>' +
+        r.hits.map((h, i) => `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${String(h.id||'').replace(/'/g,"\\'")}')">
+          <strong>${i + 1}. ${h.article ? '<span class="badge badge-green">' + String(h.article).replace(/</g,'&lt;') + '</span> ' : ''}${String(h.title||'').replace(/</g,'&lt;')}</strong>
+          <div style="font-size:12px;color:var(--text-muted);">${String(h.category||'').replace(/</g,'&lt;')}</div>
+          ${h.snip ? '<div style="font-size:12px;margin-top:4px;">' + String(h.snip).replace(/</g,'&lt;') + '</div>' : ''}
+        </div>`).join('');
+    }
+  } catch (e) {
+    if (result) result.textContent = 'خطأ: ' + (e.message || e);
+  }
+}
+
+// ربط صفحة المساعد عند فتحها
+(function() {
+  const _sp = typeof showPage === 'function' ? showPage : null;
+  if (!_sp) return;
+  window.showPage = function(pageId) {
+    _sp.apply(this, arguments);
+    if (pageId === 'assistant' || pageId === 'settings') {
+      try { mkAiRefreshStatus(); } catch (e) {}
+    }
+  };
+})();
+
+
 
 
 function normalizeLibQuery(s) {
