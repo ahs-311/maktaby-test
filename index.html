@@ -1580,7 +1580,7 @@ img,svg,video,canvas{max-width:100%}
     <div class="page" id="page-lawsuits">
       <div class="ai-box">
         <h2>⚖️ إنشاء صحيفة دعوى بالذكاء الاصطناعي المحلي</h2>
-        <p>اكتب نوع الدعوى والتفاصيل — النظام يبحث في المكتبة القانونية المحلية ويقترح السند القانوني ويبني مسودة أغنى مرتبطة بنصوص القوانين المصرية المخزّنة على الجهاز.</p>
+        <p>اكتب نوع الدعوى والتفاصيل — النظام يبحث عميقًا داخل مواد المكتبة المحلية مادةً بمادة، يستخرج السند، ويعرض المصادر مع رقم المادة.</p>
         <div class="ai-input-row">
           <input type="text" id="lawsuitQuery" placeholder="مثال: دعوى صحة ونفاذ عقد بيع شقة في المعادي..." />
           <button onclick="generateLawsuit()">إنشاء الصحيفة</button>
@@ -1764,7 +1764,7 @@ img,svg,video,canvas{max-width:100%}
     <div class="page" id="page-library">
       <div class="ai-box" style="padding:20px;">
         <h2 style="font-size:18px;">📚 المكتبة القانونية — بحث ذكي محلي</h2>
-        <p style="margin-bottom:12px;">بحث في العناوين والنص الكامل مع مرادفات قانونية وترتيب ذكي. النتائج تُربط تلقائيًا بملفات القضايا عند فتحها.</p>
+        <p style="margin-bottom:12px;">بحث عميق داخل نصوص القوانين مادةً بمادة (وليس العناوين فقط)، مع مرادفات قانونية وربط تلقائي بملفات القضايا.</p>
         <div class="ai-input-row">
           <input type="text" id="libraryQuery" placeholder="مثال: المادة 63 مرافعات / التقادم / قانون المحاماة / الإيجار..." onkeydown="if(event.key==='Enter')searchLibrary()" />
           <button type="button" onclick="searchLibrary()">بحث</button>
@@ -5140,7 +5140,7 @@ function generateLawsuit() {
   const actions = document.getElementById('lawsuitActions');
   result.classList.add('show');
   actions.style.display = 'none';
-  result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري البحث في المكتبة المحلية وإعداد المسودة...</div>';
+  result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري البحث العميق داخل مواد المكتبة وإعداد المسودة...</div>';
 
   setTimeout(() => {
     const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q + ' ' + details, { limit: 6 }) : [];
@@ -5152,11 +5152,12 @@ function generateLawsuit() {
     let html = '<pre style="white-space:pre-wrap;font-family:Tahoma,Arial;line-height:1.85;margin:0;font-size:14px;">' +
       (draft || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
     if (hits && hits.length) {
-      html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-weight:700;margin-bottom:8px;color:var(--accent);">📚 مصادر من المكتبة المحلية</div>';
+      html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-weight:700;margin-bottom:8px;color:var(--accent);">📚 مصادر من المكتبة (بحث عميق مادة بمادة)</div>';
       hits.forEach((h, i) => {
-        html += `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${(h.id || '').replace(/'/g, "\\'")}')">
-          <strong>${i + 1}. ${(h.title || '').replace(/</g, '&lt;')}</strong>
-          <div style="font-size:12px;color:var(--text-muted);">${(h.category || '').replace(/</g, '&lt;')} · درجة التطابق ${h.score || 0}</div>
+        const artBadge = h.article ? '<span class="badge badge-green" style="margin-left:6px;">' + String(h.article).replace(/</g,'&lt;') + '</span> ' : '';
+        html += `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${(h.id || '').replace(/'/g, "\'")}')">
+          <strong>${i + 1}. ${artBadge}${(h.title || '').replace(/</g, '&lt;')}</strong>
+          <div style="font-size:12px;color:var(--text-muted);">${(h.category || '').replace(/</g, '&lt;')} · تطابق ${h.score || 0}${h.article ? ' · من داخل المادة' : ''}</div>
           ${h.snip ? '<div style="font-size:12px;margin-top:4px;opacity:0.9;">' + (h.snip || '').replace(/</g, '&lt;') + '</div>' : ''}
         </div>`;
       });
@@ -5365,13 +5366,12 @@ window.MK_SMART = (function () {
   const TYPE_KEYWORDS = {
     'مدني': ['مدني', 'عقد', 'التزام', 'تعويض', 'فسخ', 'بطلان', 'ملكية', 'حيازة', 'تقادم', 'فوائد', 'مرافعات'],
     'جنائي': ['عقوبات', 'جنائي', 'جريمة', 'جنحة', 'جناية', 'تحقيق', 'نيابة', 'حبس', 'غرامة', 'إجراءات جنائية'],
-    'أسرة': ['أحوال شخصية', 'نفقة', 'خلع', 'طلاق', 'حضانة', 'رؤية', 'متعة', 'عدة', 'زواج', 'طلاق', 'أسرة'],
+    'أسرة': ['أحوال شخصية', 'نفقة', 'خلع', 'طلاق', 'حضانة', 'رؤية', 'متعة', 'عدة', 'زواج', 'أسرة'],
     'تجاري': ['تجاري', 'شركات', 'إفلاس', 'شيك', 'أوراق تجارية', 'سجل تجاري', 'عقد توريد'],
     'إداري': ['إداري', 'مجلس الدولة', 'قرار إداري', 'إلغاء', 'تعويض إداري', 'موظف'],
     'عمالي': ['عمل', 'عمال', 'فصل', 'أجور', 'تأمينات', 'عقد عمل', 'مكافأة']
   };
 
-  // مرادفات ومصطلحات قانونية شائعة لتوسيع البحث
   const SYNONYMS = {
     'نفقة': ['نفقة', 'النفقة', 'نفقة زوجية', 'نفقة صغار', 'نفقة عدة', 'متعة'],
     'خلع': ['خلع', 'المخالعة', 'طلب خلع'],
@@ -5390,24 +5390,27 @@ window.MK_SMART = (function () {
     'عقد': ['عقد', 'اتفاق', 'تعاقد', 'التزامات العقد']
   };
 
+  // أرقام عربية-هندية → لاتينية
+  const AR_DIGITS = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+
   function normalize(s) {
     return (s || '').toString().trim().toLowerCase()
       .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
-      .replace(/[ًٌٍَُِّْ]/g, '').replace(/[^\u0600-\u06FFa-z0-9\s]/g, ' ')
+      .replace(/[ًٌٍَُِّْ]/g, '')
+      .replace(/[٠-٩]/g, d => AR_DIGITS[d] || d)
+      .replace(/[^\u0600-\u06FFa-z0-9\s]/g, ' ')
       .replace(/\s+/g, ' ').trim();
   }
 
   function expandQuery(q) {
     const nq = normalize(q);
     const tokens = new Set(nq.split(/\s+/).filter(t => t.length >= 2));
-    // add synonyms
     Object.keys(SYNONYMS).forEach(key => {
       const nk = normalize(key);
       if (nq.includes(nk) || tokens.has(nk)) {
         SYNONYMS[key].forEach(syn => tokens.add(normalize(syn)));
       }
     });
-    // type keywords if query mentions a case type word
     Object.keys(TYPE_KEYWORDS).forEach(t => {
       if (nq.includes(normalize(t))) {
         TYPE_KEYWORDS[t].forEach(k => tokens.add(normalize(k)));
@@ -5416,38 +5419,51 @@ window.MK_SMART = (function () {
     return { normalized: nq, tokens: [...tokens] };
   }
 
-  function scoreDoc(doc, expanded, boostCategory) {
-    const nt = normalize(doc.title || '');
-    const ntext = normalize((doc.text || '').slice(0, 100000));
+  /** تقسيم نص قانون إلى مواد (بحث عميق مادة بمادة) */
+  function splitArticles(rawText) {
+    if (!rawText || rawText.length < 40) return [];
+    const re = /(?:^|[\n\r])\s*((?:مادة|المادة)\s*[\(\[]?\s*([0-9٠-٩]+)\s*[\)\]]?[^\n\r]{0,80})/g;
+    const marks = [];
+    let m;
+    while ((m = re.exec(rawText)) !== null) {
+      const numRaw = (m[2] || '').replace(/[٠-٩]/g, d => AR_DIGITS[d] || d);
+      marks.push({
+        index: m.index + (m[0].startsWith('\n') || m[0].startsWith('\r') ? 1 : 0),
+        label: (m[1] || '').replace(/\s+/g, ' ').trim().slice(0, 60),
+        num: numRaw
+      });
+    }
+    if (!marks.length) return [];
+    const arts = [];
+    for (let i = 0; i < marks.length; i++) {
+      const start = marks[i].index;
+      const end = i + 1 < marks.length ? marks[i + 1].index : Math.min(rawText.length, start + 2500);
+      let body = rawText.slice(start, end).replace(/\s+/g, ' ').trim();
+      if (body.length > 1200) body = body.slice(0, 1200) + '…';
+      arts.push({
+        num: marks[i].num,
+        label: marks[i].label || ('مادة ' + marks[i].num),
+        text: body
+      });
+    }
+    return arts;
+  }
+
+  function scoreText(ntitle, ntext, expanded) {
     const nq = expanded.normalized;
     const tokens = expanded.tokens;
     let score = 0;
-
-    if (nt.includes(nq)) score += 120;
-    if (nq.length >= 4 && ntext.includes(nq)) score += 55;
-
+    if (ntitle && ntitle.includes(nq)) score += 120;
+    if (nq.length >= 4 && ntext.includes(nq)) score += 70;
     tokens.forEach(t => {
       if (t.length < 2) return;
-      if (nt.includes(t)) score += 28;
-      // count occurrences lightly in body
+      if (ntitle && ntitle.includes(t)) score += 28;
       if (ntext.includes(t)) {
-        score += 6;
-        // extra if appears early
+        score += 8;
         const pos = ntext.indexOf(t);
-        if (pos >= 0 && pos < 2000) score += 3;
+        if (pos >= 0 && pos < 400) score += 4;
       }
     });
-
-    if (boostCategory && doc.category && normalize(doc.category).includes(normalize(boostCategory))) {
-      score += 35;
-    }
-
-    // category keyword match from type map
-    if (doc.category) {
-      const nc = normalize(doc.category);
-      tokens.forEach(t => { if (nc.includes(t)) score += 8; });
-    }
-
     return score;
   }
 
@@ -5463,45 +5479,132 @@ window.MK_SMART = (function () {
         if (pos >= 0) break;
       }
     }
-    if (pos < 0) return rawText.slice(0, 140).replace(/\s+/g, ' ').trim() + (rawText.length > 140 ? '…' : '');
-    const start = Math.max(0, pos - 50);
-    let snip = rawText.slice(start, start + 180).replace(/\s+/g, ' ').trim();
+    if (pos < 0) {
+      const s = rawText.slice(0, 160).replace(/\s+/g, ' ').trim();
+      return s + (rawText.length > 160 ? '…' : '');
+    }
+    const start = Math.max(0, pos - 40);
+    let snip = rawText.slice(start, start + 200).replace(/\s+/g, ' ').trim();
     if (start > 0) snip = '…' + snip;
-    if (start + 180 < rawText.length) snip += '…';
+    if (start + 200 < rawText.length) snip += '…';
     return snip;
   }
 
-  /** استرجاع أهم النصوص من المكتبة */
+  /**
+   * استرجاع عميق: يبحث داخل المواد وليس العناوين فقط.
+   * يعيد نتائج على مستوى المادة عند الإمكان.
+   */
   function retrieve(query, opts) {
     opts = opts || {};
-    const limit = opts.limit || 8;
+    const limit = opts.limit || 12;
     const catBoost = opts.categoryBoost || '';
     const catFilter = opts.categoryFilter || '';
+    const deep = opts.deep !== false; // افتراضي: بحث عميق
     const expanded = expandQuery(query);
     const idx = (typeof libSearchIndex === 'function' ? libSearchIndex() : (window.MK_LIBRARY_SEARCH || []));
     const catalog = (typeof libCatalog === 'function' ? libCatalog() : (window.MK_LIBRARY_CATALOG || []));
     const source = idx.length ? idx : catalog.map(c => ({ id: c.id, title: c.title, category: c.category, file: c.file, text: '' }));
 
-    const scored = [];
+    // مرحلة 1: ترتيب سريع على مستوى الملف
+    const docScores = [];
     for (const doc of source) {
       if (catFilter && doc.category !== catFilter) continue;
-      const score = scoreDoc(doc, expanded, catBoost);
-      if (score > 0) {
-        scored.push({
+      const nt = normalize(doc.title || '');
+      const ntext = normalize((doc.text || '').slice(0, 120000));
+      let score = scoreText(nt, ntext, expanded);
+      if (catBoost && doc.category && normalize(doc.category).includes(normalize(catBoost))) score += 30;
+      if (doc.category) {
+        const nc = normalize(doc.category);
+        expanded.tokens.forEach(t => { if (nc.includes(t)) score += 6; });
+      }
+      if (score > 0) docScores.push({ doc, score });
+    }
+    docScores.sort((a, b) => b.score - a.score);
+
+    if (!deep) {
+      return docScores.slice(0, limit).map(({ doc, score }) => ({
+        id: doc.id,
+        title: doc.title,
+        category: doc.category,
+        file: doc.file,
+        score,
+        article: null,
+        snip: makeSnippet(doc.text || '', expanded.tokens, expanded.normalized)
+      }));
+    }
+
+    // مرحلة 2: تعميق أفضل الملفات — تقسيم لمواد وتقييم كل مادة
+    const topDocs = docScores.slice(0, Math.min(40, docScores.length));
+    const articleHits = [];
+    const fileFallback = [];
+
+    for (const { doc, score: docScore } of topDocs) {
+      const arts = splitArticles(doc.text || '');
+      if (!arts.length) {
+        fileFallback.push({
           id: doc.id,
           title: doc.title,
           category: doc.category,
           file: doc.file,
-          score,
+          score: docScore,
+          article: null,
+          snip: makeSnippet(doc.text || '', expanded.tokens, expanded.normalized)
+        });
+        continue;
+      }
+      let bestArtScore = 0;
+      for (const art of arts) {
+        const nArt = normalize(art.text);
+        const nLabel = normalize(art.label || '');
+        let aScore = scoreText(nLabel, nArt, expanded);
+        // مكافأة إذا ذكر المستخدم رقم مادة
+        if (expanded.normalized.match(/(?:ماد[ةه]|المادة)\s*\d+/) || expanded.tokens.some(t => /^\d{1,4}$/.test(t))) {
+          const want = expanded.tokens.find(t => /^\d{1,4}$/.test(t));
+          if (want && art.num === want) aScore += 100;
+        }
+        if (aScore > 0) {
+          bestArtScore = Math.max(bestArtScore, aScore);
+          articleHits.push({
+            id: doc.id,
+            title: doc.title,
+            category: doc.category,
+            file: doc.file,
+            score: aScore + Math.min(25, Math.floor(docScore / 10)),
+            article: art.num ? ('مادة ' + art.num) : art.label,
+            articleNum: art.num,
+            snip: makeSnippet(art.text, expanded.tokens, expanded.normalized) || art.text.slice(0, 180)
+          });
+        }
+      }
+      // إن لم تطابق أي مادة لكن الملف له درجة: أبقِ الملف
+      if (bestArtScore === 0 && docScore > 0) {
+        fileFallback.push({
+          id: doc.id,
+          title: doc.title,
+          category: doc.category,
+          file: doc.file,
+          score: docScore,
+          article: null,
           snip: makeSnippet(doc.text || '', expanded.tokens, expanded.normalized)
         });
       }
     }
-    scored.sort((a, b) => b.score - a.score || (a.title || '').localeCompare(b.title || '', 'ar'));
-    return scored.slice(0, limit);
+
+    const merged = articleHits.concat(fileFallback);
+    // إزالة تكرار نفس المادة+الملف
+    const seen = new Set();
+    const unique = [];
+    merged.sort((a, b) => b.score - a.score);
+    for (const h of merged) {
+      const key = h.id + '|' + (h.articleNum || h.article || '');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(h);
+      if (unique.length >= limit) break;
+    }
+    return unique;
   }
 
-  /** اقتراحات مرتبطة بقضية */
   function suggestForCase(c) {
     if (!c) return [];
     const parts = [
@@ -5512,8 +5615,6 @@ window.MK_SMART = (function () {
       (c.parties || []).map(p => (p.role || '') + ' ' + (p.name || '')).join(' ')
     ];
     const q = parts.join(' ').trim() || c.type || 'مدني';
-    const catBoost = c.type || '';
-    // map case type to likely library categories
     const typeToCat = {
       'أسرة': 'الأحوال الشخصية',
       'مدني': 'مدني',
@@ -5522,33 +5623,33 @@ window.MK_SMART = (function () {
       'إداري': 'إداري',
       'عمالي': 'عمل'
     };
-    const boost = typeToCat[c.type] || catBoost;
-    return retrieve(q, { limit: 6, categoryBoost: boost });
+    const boost = typeToCat[c.type] || c.type || '';
+    return retrieve(q, { limit: 8, categoryBoost: boost, deep: true });
   }
 
-  /** بناء نص السند القانوني من النتائج */
   function buildLegalBasis(hits) {
     if (!hits || !hits.length) {
       return '- المادة .... من القانون المدني / قانون المرافعات\n- ما استقرت عليه أحكام محكمة النقض في هذا الشأن';
     }
-    return hits.slice(0, 5).map((h, i) => {
-      const ref = h.title ? h.title.slice(0, 90) : (h.category || 'نص قانوني');
-      return `${i + 1}. ${ref}${h.snip ? '\n   «' + h.snip.slice(0, 120) + '»' : ''}`;
+    return hits.slice(0, 6).map((h, i) => {
+      const art = h.article ? (h.article + ' — ') : '';
+      const ref = (h.title || h.category || 'نص قانوني').slice(0, 80);
+      const sn = h.snip ? '\n   «' + h.snip.slice(0, 140) + '»' : '';
+      return (i + 1) + '. ' + art + ref + sn;
     }).join('\n');
   }
 
-  /** مسودة صحيفة مع سند من المكتبة */
   function buildLawsuitDraft(q, details, hits) {
     const basis = buildLegalBasis(hits);
     const sourcesNote = (hits && hits.length)
-      ? '\n\n────────────────────────────────────────\n📌 السند القانوني مستخرج تلقائيًا من المكتبة المحلية على جهازك (بدون اتصال خارجي):\n' +
-        hits.slice(0, 5).map((h, i) => `  ${i + 1}. ${h.title} — ${h.category || ''}`).join('\n') +
-        '\n(راجع النص الكامل من قسم المكتبة قبل الاعتماد)'
-      : '\n\n────────────────────────────────────────\n⚠️ لم يُعثر على نصوص مطابقة قوية في المكتبة — أكمل السند يدويًا.';
+      ? '\n\n────────────────────────────────────────\n📌 سند مستخرج ببحث عميق (مادة بمادة) من المكتبة المحلية على جهازك:\n' +
+        hits.slice(0, 6).map((h, i) => '  ' + (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + (h.category ? ' (' + h.category + ')' : '')).join('\n') +
+        '\n(راجع النص الكامل من المكتبة قبل الاعتماد في إجراء فعلي)'
+      : '\n\n────────────────────────────────────────\n⚠️ لم يُعثر على مواد مطابقة قوية — أكمل السند يدويًا من المكتبة.';
 
     return `════════════════════════════════════════
         مسودة صحيفة دعوى
-        (مولّدة محليًا بالاعتماد على مكتبة القوانين)
+        (بحث عميق محلي داخل مواد القوانين)
 ════════════════════════════════════════
 
 السيد الأستاذ المستشار / رئيس {{المحكمة}} الموقر
@@ -5570,7 +5671,7 @@ ${details ? details + '\n' : ''}1- بموجب ........................ المؤ�
 3- وإذ امتنع المدعى عليه عن ........................ 
 4- الأمر الذي حدا بالمدعي إلى رفع هذه الدعوى مستندًا إلى صحيح القانون.
 
-السند القانوني (من المكتبة المحلية):
+السند القانوني (مواد مستخرجة من المكتبة):
 ${basis}
 
 الطلبات:
@@ -5583,18 +5684,14 @@ ${basis}
 الوكيل
 المحامي: {{اسم_المحامي}}
 التوقيع: ........................
-التاريخ: {{تاريخ_اليوم}}${sourcesNote}`;
+التاريخ: {{تاريخ_اليوم}}` + sourcesNote;
   }
 
-  /** بحث موحّد خفيف: مكتبة + قضايا + ملاحظات */
   function unifiedSearch(query, opts) {
     opts = opts || {};
-    const limitLib = opts.libLimit || 10;
-    const limitCases = opts.caseLimit || 8;
+    const libHits = retrieve(query, { limit: opts.libLimit || 12, deep: true });
     const nq = normalize(query);
     const tokens = nq.split(/\s+/).filter(t => t.length >= 2);
-    const libHits = retrieve(query, { limit: limitLib });
-
     const cases = (window.DB && DB.get) ? (DB.get('cases') || []) : [];
     const caseHits = [];
     for (const c of cases) {
@@ -5606,28 +5703,13 @@ ${basis}
       if (score > 0) caseHits.push({ id: c.id, number: c.number, subject: c.subject, type: c.type, score });
     }
     caseHits.sort((a, b) => b.score - a.score);
-
-    const notes = (window.DB && DB.get) ? (DB.get('notes') || []) : [];
-    const noteHits = [];
-    for (const n of notes) {
-      const blob = normalize((n.title || '') + ' ' + (n.content || ''));
-      let score = 0;
-      if (blob.includes(nq)) score += 40;
-      tokens.forEach(t => { if (blob.includes(t)) score += 8; });
-      if (score > 0) noteHits.push({ id: n.id, title: n.title, caseId: n.caseId, score, snip: (n.content || '').slice(0, 120) });
-    }
-    noteHits.sort((a, b) => b.score - a.score);
-
-    return {
-      library: libHits,
-      cases: caseHits.slice(0, limitCases),
-      notes: noteHits.slice(0, 6)
-    };
+    return { library: libHits, cases: caseHits.slice(0, opts.caseLimit || 8) };
   }
 
   return {
     normalize,
     expandQuery,
+    splitArticles,
     retrieve,
     suggestForCase,
     buildLawsuitDraft,
@@ -5662,7 +5744,7 @@ function searchLibrary() {
   if (result) {
     result.style.display = 'block';
     result.classList.add('show');
-    result.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">🔍 جاري البحث الذكي في النصوص...</div>';
+    result.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">🔍 جاري البحث العميق داخل المواد...</div>';
   }
 
   // yield to UI
@@ -5713,11 +5795,15 @@ function searchLibrary() {
       result.innerHTML = `<div style="padding:16px;">لا نتائج لـ «${esc(q)}». جرّب كلمات أقل أو تصفّح التصنيفات.</div>`;
       return;
     }
-    result.innerHTML = `<div style="margin-bottom:10px;font-size:13px;color:var(--text-muted);">نتائج البحث عن «${esc(q)}»</div>` +
+    const deepCount = top.filter(it => it.article).length;
+    result.innerHTML = `<div style="margin-bottom:10px;font-size:13px;color:var(--text-muted);">
+        نتائج البحث العميق عن «${esc(q)}» — ${top.length} نتيجة${deepCount ? ' · منها ' + deepCount + ' على مستوى المادة' : ''}
+        <span class="badge badge-blue" style="margin-right:6px;">🤖 بحث ذكي داخل المواد</span>
+      </div>` +
       top.map(it => `
         <div class="note-item" style="cursor:pointer;margin-bottom:8px;" onclick="openLibraryLaw('${esc(it.id)}')">
-          <strong>${esc(it.title)}</strong>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${esc(it.category)} · درجة التطابق ${it.score}</div>
+          <strong>${it.article ? '<span class="badge badge-green" style="margin-left:6px;">' + esc(it.article) + '</span>' : ''}${esc(it.title)}</strong>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${esc(it.category || '')} · درجة التطابق ${it.score || 0}${it.article ? ' · مطابقة داخل المادة' : ''}</div>
           ${it.snip ? `<div style="font-size:12px;margin-top:6px;line-height:1.6;opacity:0.9;">${esc(it.snip)}</div>` : ''}
         </div>`).join('');
   }, 30);
