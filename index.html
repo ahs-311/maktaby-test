@@ -1206,8 +1206,10 @@ img,svg,video,canvas{max-width:100%}
         <div id="mkAlertPanel" role="dialog" aria-label="التنبيهات">
           <h4>التنبيهات والتذكيرات</h4>
           <div class="mk-alert-actions">
-            <button type="button" class="btn btn-primary btn-sm" onclick="mkToggleAlertPanel(event);showPage('settings')">⚙️ إعدادات الإشعارات</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="mkTestNotification()">تجربة إشعار نظام</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="mkTestInAppReminder()">تذكير بعد 10 ثوانٍ</button>
             <button type="button" class="btn btn-outline btn-sm" onclick="mkRunDailySummary(true)">ملخص اليوم</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="mkRequestNotifPermission()">إذن الإشعارات</button>
           </div>
           <div id="mkAlertUpcoming"><p style="color:var(--text-muted);font-size:13px;">جاري التحميل...</p></div>
           <h4 style="margin-top:14px;">آخر التنبيهات داخل التطبيق</h4>
@@ -1424,7 +1426,8 @@ img,svg,video,canvas{max-width:100%}
           <option>أخرى</option>
         </select>
         <button class="btn btn-primary" onclick="openEventModal()">+ إضافة موعد</button>
-        </div>
+        <button class="btn btn-outline btn-sm" type="button" onclick="mkRequestNotifPermission()">🔔 الإشعارات</button>
+      </div>
       <div class="card">
         <div class="card-body no-pad">
           <div class="table-wrap">
@@ -1576,8 +1579,8 @@ img,svg,video,canvas{max-width:100%}
     <!-- LAWSUITS AI -->
     <div class="page" id="page-lawsuits">
       <div class="ai-box">
-        <h2>⚖️ إنشاء صحيفة دعوى بالذكاء الاصطناعي</h2>
-        <p>اكتب نوع الدعوى والتفاصيل، وسيتم إعداد مسودة منظمة قابلة للمراجعة والتعديل.</p>
+        <h2>⚖️ إنشاء صحيفة دعوى بالذكاء الاصطناعي المحلي</h2>
+        <p>اكتب نوع الدعوى والتفاصيل — النظام يبحث في المكتبة القانونية المحلية ويقترح السند القانوني ويبني مسودة أغنى مرتبطة بنصوص القوانين المصرية المخزّنة على الجهاز.</p>
         <div class="ai-input-row">
           <input type="text" id="lawsuitQuery" placeholder="مثال: دعوى صحة ونفاذ عقد بيع شقة في المعادي..." />
           <button onclick="generateLawsuit()">إنشاء الصحيفة</button>
@@ -1760,8 +1763,8 @@ img,svg,video,canvas{max-width:100%}
     <!-- LIBRARY -->
     <div class="page" id="page-library">
       <div class="ai-box" style="padding:20px;">
-        <h2 style="font-size:18px;">📚 المكتبة القانونية</h2>
-        <p style="margin-bottom:12px;">تصفح وابحث في نصوص القوانين المصرية (بحث في العناوين والنص الكامل)</p>
+        <h2 style="font-size:18px;">📚 المكتبة القانونية — بحث ذكي محلي</h2>
+        <p style="margin-bottom:12px;">بحث في العناوين والنص الكامل مع مرادفات قانونية وترتيب ذكي. النتائج تُربط تلقائيًا بملفات القضايا عند فتحها.</p>
         <div class="ai-input-row">
           <input type="text" id="libraryQuery" placeholder="مثال: المادة 63 مرافعات / التقادم / قانون المحاماة / الإيجار..." onkeydown="if(event.key==='Enter')searchLibrary()" />
           <button type="button" onclick="searchLibrary()">بحث</button>
@@ -2842,6 +2845,7 @@ function viewClient(id) {
     <h4 style="margin:16px 0 10px;font-size:15px;">المستندات (${docs.length})</h4>
     ${docs.length ? docs.map(d => `<div class="note-item"><strong>${esc(d.title)}</strong> <span class="badge badge-blue">${esc(d.category)}</span></div>`).join('') : none('لا مستندات')}
 
+    ${smartLibHtml}
     <h4 style="margin:16px 0 10px;font-size:15px;">الملاحظات (${notes.length})</h4>
     ${notes.length ? notes.map(n => `<div class="note-item"><div class="note-meta"><span>${esc(n.title) || 'ملاحظة'}</span><span>${formatDate(n.createdAt)}</span></div>${esc(n.content)}</div>`).join('') : none('لا ملاحظات')}
   `;
@@ -3141,6 +3145,29 @@ function viewCase(id) {
     if (s === 'منتهية') return 'badge-blue';
     return 'badge-red';
   };
+
+  // اقتراحات ذكية من المكتبة المحلية
+  let smartLibHtml = '';
+  try {
+    if (window.MK_SMART && typeof MK_SMART.suggestForCase === 'function') {
+      const sug = MK_SMART.suggestForCase(c) || [];
+      if (sug.length) {
+        const subj = (c.subject || c.type || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        smartLibHtml = `<div style="margin:16px 0 12px;padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--bg);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <h4 style="font-size:15px;margin:0;color:var(--accent);">🤖 مواد مقترحة من المكتبة (ربط ذكي)</h4>
+            <button class="btn btn-outline btn-sm" type="button" onclick="(function(){var el=document.getElementById('lawsuitQuery');if(el)el.value='${subj}';showPage('lawsuits');setTimeout(function(){generateLawsuit();},200);})()">إنشاء صحيفة من هذه القضية</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">اقتراحات مبنية على موضوع القضية ونوعها وملاحظاتها — بدون اتصال خارجي.</p>
+          ${sug.map((h,i) => `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${String(h.id||'').replace(/'/g,"\\'")}')">
+            <strong>${i+1}. ${esc(h.title||'')}</strong>
+            <div style="font-size:12px;color:var(--text-muted);">${esc(h.category||'')} · تطابق ${h.score||0}</div>
+            ${h.snip ? `<div style="font-size:12px;margin-top:4px;opacity:0.9;line-height:1.55;">${esc(h.snip)}</div>` : ''}
+          </div>`).join('')}
+        </div>`;
+      }
+    }
+  } catch (e) { console.warn('MK_SMART suggest', e); }
 
   document.getElementById('caseDetailBody').innerHTML = `
     <div class="detail-grid" style="margin-bottom:20px;">
@@ -5113,22 +5140,37 @@ function generateLawsuit() {
   const actions = document.getElementById('lawsuitActions');
   result.classList.add('show');
   actions.style.display = 'none';
-  result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري إعداد مسودة الصحيفة...</div>';
+  result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري البحث في المكتبة المحلية وإعداد المسودة...</div>';
 
   setTimeout(() => {
-    window.__curLawsuit = { q, details };
-    result.textContent = lawsuitText(q, details) + `
-
-────────────────────────────────────────
-⚠️ مسودة تجريبية — في النسخة الكاملة يتم التوليد عبر Gemini
-مع إمكانية تخصيص الأسماء والتواريخ والطلبات تلقائيًا.
-الخانات {{...}} تُملأ من القضية أو الموكل عند الفتح في المحرر.`;
+    const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q + ' ' + details, { limit: 6 }) : [];
+    const draft = (window.MK_SMART && MK_SMART.buildLawsuitDraft)
+      ? MK_SMART.buildLawsuitDraft(q, details, hits)
+      : lawsuitText(q, details);
+    window.__curLawsuit = { q, details, hits, draft };
+    // عرض المسودة + بطاقات المصادر
+    let html = '<pre style="white-space:pre-wrap;font-family:Tahoma,Arial;line-height:1.85;margin:0;font-size:14px;">' +
+      (draft || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+    if (hits && hits.length) {
+      html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-weight:700;margin-bottom:8px;color:var(--accent);">📚 مصادر من المكتبة المحلية</div>';
+      hits.forEach((h, i) => {
+        html += `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${(h.id || '').replace(/'/g, "\\'")}')">
+          <strong>${i + 1}. ${(h.title || '').replace(/</g, '&lt;')}</strong>
+          <div style="font-size:12px;color:var(--text-muted);">${(h.category || '').replace(/</g, '&lt;')} · درجة التطابق ${h.score || 0}</div>
+          ${h.snip ? '<div style="font-size:12px;margin-top:4px;opacity:0.9;">' + (h.snip || '').replace(/</g, '&lt;') + '</div>' : ''}
+        </div>`;
+      });
+      html += '</div>';
+    }
+    result.innerHTML = html;
     actions.style.display = 'flex';
-  }, 1100);
+  }, 280);
 }
 
-// نص المسودة الخام (بدون أي HTML) — يُعرض في المعاينة ويُفتح في المحرر
+// نص المسودة الخام (بدون أي HTML) — يُعرض في المعاينة ويُفتح في المحرر (احتياطي)
 function lawsuitText(q, details) {
+  const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q + ' ' + (details || ''), { limit: 5 }) : [];
+  if (window.MK_SMART && MK_SMART.buildLawsuitDraft) return MK_SMART.buildLawsuitDraft(q, details, hits);
   return `════════════════════════════════════════
         مسودة صحيفة دعوى
 ════════════════════════════════════════
@@ -5147,7 +5189,7 @@ function lawsuitText(q, details) {
 الموضوع: ${q}
 
 الوقائع:
-${details ? details + '\n' : ''}1- بموجب ........................ المؤرخ ../../.... 
+${details ? details + '\\n' : ''}1- بموجب ........................ المؤرخ ../../.... 
 2- ........................................................
 3- وإذ امتنع المدعى عليه عن ........................ 
 4- الأمر الذي حدا بالمدعي إلى رفع هذه الدعوى.
@@ -5170,7 +5212,8 @@ ${details ? details + '\n' : ''}1- بموجب ........................ المؤ�
 }
 function openLawsuitInEditor() {
   const c = window.__curLawsuit; if (!c) return alert('أنشئ الصحيفة أولًا.');
-  DQ_EDITOR.ui.open({ kind: 'lawsuit', title: 'صحيفة دعوى: ' + c.q, text: lawsuitText(c.q, c.details), tpl: 'lawsuit' });
+  const text = c.draft || lawsuitText(c.q, c.details);
+  DQ_EDITOR.ui.open({ kind: 'lawsuit', title: 'صحيفة دعوى: ' + c.q, text: text, tpl: 'lawsuit' });
 }
 
 function copyLawsuit() {
@@ -5315,6 +5358,287 @@ function quickLib(q) {
   searchLibrary();
 }
 
+
+// ===================== MK_SMART — مساعد ذكي محلي (بدون سيرفرات) =====================
+// يعتمد على فهرس المكتبة + بيانات القضايا فقط. يعمل أوفلاين بالكامل.
+window.MK_SMART = (function () {
+  const TYPE_KEYWORDS = {
+    'مدني': ['مدني', 'عقد', 'التزام', 'تعويض', 'فسخ', 'بطلان', 'ملكية', 'حيازة', 'تقادم', 'فوائد', 'مرافعات'],
+    'جنائي': ['عقوبات', 'جنائي', 'جريمة', 'جنحة', 'جناية', 'تحقيق', 'نيابة', 'حبس', 'غرامة', 'إجراءات جنائية'],
+    'أسرة': ['أحوال شخصية', 'نفقة', 'خلع', 'طلاق', 'حضانة', 'رؤية', 'متعة', 'عدة', 'زواج', 'طلاق', 'أسرة'],
+    'تجاري': ['تجاري', 'شركات', 'إفلاس', 'شيك', 'أوراق تجارية', 'سجل تجاري', 'عقد توريد'],
+    'إداري': ['إداري', 'مجلس الدولة', 'قرار إداري', 'إلغاء', 'تعويض إداري', 'موظف'],
+    'عمالي': ['عمل', 'عمال', 'فصل', 'أجور', 'تأمينات', 'عقد عمل', 'مكافأة']
+  };
+
+  // مرادفات ومصطلحات قانونية شائعة لتوسيع البحث
+  const SYNONYMS = {
+    'نفقة': ['نفقة', 'النفقة', 'نفقة زوجية', 'نفقة صغار', 'نفقة عدة', 'متعة'],
+    'خلع': ['خلع', 'المخالعة', 'طلب خلع'],
+    'طلاق': ['طلاق', 'تطليق', 'فرقة', 'بينونة'],
+    'إيجار': ['إيجار', 'الإيجار', 'مؤجر', 'مستأجر', 'عين مؤجرة', 'أجرة'],
+    'فسخ': ['فسخ', 'انفساخ', 'إبطال', 'بطلان'],
+    'تعويض': ['تعويض', 'ضرر', 'أضرار', 'مسؤولية', 'خطأ'],
+    'صحة ونفاذ': ['صحة ونفاذ', 'نفاذ', 'تسجيل', 'شهر عقاري', 'عقد بيع'],
+    'طرد': ['طرد', 'إخلاء', 'غصب', 'استرداد حيازة', 'رفع يد'],
+    'تقادم': ['تقادم', 'سقوط بالتقادم', 'مدة التقادم', 'قطع التقادم'],
+    'استئناف': ['استئناف', 'طعن بالاستئناف', 'ميعاد الاستئناف'],
+    'نقض': ['نقض', 'طعن بالنقض', 'محكمة النقض'],
+    'مرافعات': ['مرافعات', 'إجراءات', 'إعلان', 'صحيفة', 'اختصاص'],
+    'محاماة': ['محاماة', 'أتعاب', 'توكيل', 'محامي'],
+    'شيك': ['شيك', 'شيك بدون رصيد', 'ورقة تجارية'],
+    'عقد': ['عقد', 'اتفاق', 'تعاقد', 'التزامات العقد']
+  };
+
+  function normalize(s) {
+    return (s || '').toString().trim().toLowerCase()
+      .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+      .replace(/[ًٌٍَُِّْ]/g, '').replace(/[^\u0600-\u06FFa-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  function expandQuery(q) {
+    const nq = normalize(q);
+    const tokens = new Set(nq.split(/\s+/).filter(t => t.length >= 2));
+    // add synonyms
+    Object.keys(SYNONYMS).forEach(key => {
+      const nk = normalize(key);
+      if (nq.includes(nk) || tokens.has(nk)) {
+        SYNONYMS[key].forEach(syn => tokens.add(normalize(syn)));
+      }
+    });
+    // type keywords if query mentions a case type word
+    Object.keys(TYPE_KEYWORDS).forEach(t => {
+      if (nq.includes(normalize(t))) {
+        TYPE_KEYWORDS[t].forEach(k => tokens.add(normalize(k)));
+      }
+    });
+    return { normalized: nq, tokens: [...tokens] };
+  }
+
+  function scoreDoc(doc, expanded, boostCategory) {
+    const nt = normalize(doc.title || '');
+    const ntext = normalize((doc.text || '').slice(0, 100000));
+    const nq = expanded.normalized;
+    const tokens = expanded.tokens;
+    let score = 0;
+
+    if (nt.includes(nq)) score += 120;
+    if (nq.length >= 4 && ntext.includes(nq)) score += 55;
+
+    tokens.forEach(t => {
+      if (t.length < 2) return;
+      if (nt.includes(t)) score += 28;
+      // count occurrences lightly in body
+      if (ntext.includes(t)) {
+        score += 6;
+        // extra if appears early
+        const pos = ntext.indexOf(t);
+        if (pos >= 0 && pos < 2000) score += 3;
+      }
+    });
+
+    if (boostCategory && doc.category && normalize(doc.category).includes(normalize(boostCategory))) {
+      score += 35;
+    }
+
+    // category keyword match from type map
+    if (doc.category) {
+      const nc = normalize(doc.category);
+      tokens.forEach(t => { if (nc.includes(t)) score += 8; });
+    }
+
+    return score;
+  }
+
+  function makeSnippet(rawText, tokens, nq) {
+    if (!rawText) return '';
+    const nraw = normalize(rawText);
+    let pos = -1;
+    const prefer = (nq && nq.length >= 3) ? nq : (tokens[0] || '');
+    if (prefer) pos = nraw.indexOf(prefer);
+    if (pos < 0) {
+      for (const t of tokens) {
+        pos = nraw.indexOf(t);
+        if (pos >= 0) break;
+      }
+    }
+    if (pos < 0) return rawText.slice(0, 140).replace(/\s+/g, ' ').trim() + (rawText.length > 140 ? '…' : '');
+    const start = Math.max(0, pos - 50);
+    let snip = rawText.slice(start, start + 180).replace(/\s+/g, ' ').trim();
+    if (start > 0) snip = '…' + snip;
+    if (start + 180 < rawText.length) snip += '…';
+    return snip;
+  }
+
+  /** استرجاع أهم النصوص من المكتبة */
+  function retrieve(query, opts) {
+    opts = opts || {};
+    const limit = opts.limit || 8;
+    const catBoost = opts.categoryBoost || '';
+    const catFilter = opts.categoryFilter || '';
+    const expanded = expandQuery(query);
+    const idx = (typeof libSearchIndex === 'function' ? libSearchIndex() : (window.MK_LIBRARY_SEARCH || []));
+    const catalog = (typeof libCatalog === 'function' ? libCatalog() : (window.MK_LIBRARY_CATALOG || []));
+    const source = idx.length ? idx : catalog.map(c => ({ id: c.id, title: c.title, category: c.category, file: c.file, text: '' }));
+
+    const scored = [];
+    for (const doc of source) {
+      if (catFilter && doc.category !== catFilter) continue;
+      const score = scoreDoc(doc, expanded, catBoost);
+      if (score > 0) {
+        scored.push({
+          id: doc.id,
+          title: doc.title,
+          category: doc.category,
+          file: doc.file,
+          score,
+          snip: makeSnippet(doc.text || '', expanded.tokens, expanded.normalized)
+        });
+      }
+    }
+    scored.sort((a, b) => b.score - a.score || (a.title || '').localeCompare(b.title || '', 'ar'));
+    return scored.slice(0, limit);
+  }
+
+  /** اقتراحات مرتبطة بقضية */
+  function suggestForCase(c) {
+    if (!c) return [];
+    const parts = [
+      c.subject || '',
+      c.type || '',
+      c.stage || '',
+      c.notes || '',
+      (c.parties || []).map(p => (p.role || '') + ' ' + (p.name || '')).join(' ')
+    ];
+    const q = parts.join(' ').trim() || c.type || 'مدني';
+    const catBoost = c.type || '';
+    // map case type to likely library categories
+    const typeToCat = {
+      'أسرة': 'الأحوال الشخصية',
+      'مدني': 'مدني',
+      'جنائي': 'عقوبات',
+      'تجاري': 'تجاري',
+      'إداري': 'إداري',
+      'عمالي': 'عمل'
+    };
+    const boost = typeToCat[c.type] || catBoost;
+    return retrieve(q, { limit: 6, categoryBoost: boost });
+  }
+
+  /** بناء نص السند القانوني من النتائج */
+  function buildLegalBasis(hits) {
+    if (!hits || !hits.length) {
+      return '- المادة .... من القانون المدني / قانون المرافعات\n- ما استقرت عليه أحكام محكمة النقض في هذا الشأن';
+    }
+    return hits.slice(0, 5).map((h, i) => {
+      const ref = h.title ? h.title.slice(0, 90) : (h.category || 'نص قانوني');
+      return `${i + 1}. ${ref}${h.snip ? '\n   «' + h.snip.slice(0, 120) + '»' : ''}`;
+    }).join('\n');
+  }
+
+  /** مسودة صحيفة مع سند من المكتبة */
+  function buildLawsuitDraft(q, details, hits) {
+    const basis = buildLegalBasis(hits);
+    const sourcesNote = (hits && hits.length)
+      ? '\n\n────────────────────────────────────────\n📌 السند القانوني مستخرج تلقائيًا من المكتبة المحلية على جهازك (بدون اتصال خارجي):\n' +
+        hits.slice(0, 5).map((h, i) => `  ${i + 1}. ${h.title} — ${h.category || ''}`).join('\n') +
+        '\n(راجع النص الكامل من قسم المكتبة قبل الاعتماد)'
+      : '\n\n────────────────────────────────────────\n⚠️ لم يُعثر على نصوص مطابقة قوية في المكتبة — أكمل السند يدويًا.';
+
+    return `════════════════════════════════════════
+        مسودة صحيفة دعوى
+        (مولّدة محليًا بالاعتماد على مكتبة القوانين)
+════════════════════════════════════════
+
+السيد الأستاذ المستشار / رئيس {{المحكمة}} الموقر
+
+تحية طيبة وبعد،
+
+مقدمه لسيادتكم: {{اسم_الموكل}} (المدعي)
+ومحله المختار مكتب الأستاذ / {{اسم_المحامي}} المحامي
+الكائن في: {{عنوان_المكتب}}
+
+ضد: {{اسم_الخصم}} (المدعى عليه)
+وموطنه: ........................
+
+الموضوع: ${q}
+
+الوقائع:
+${details ? details + '\n' : ''}1- بموجب ........................ المؤرخ ../../.... 
+2- ........................................................
+3- وإذ امتنع المدعى عليه عن ........................ 
+4- الأمر الذي حدا بالمدعي إلى رفع هذه الدعوى مستندًا إلى صحيح القانون.
+
+السند القانوني (من المكتبة المحلية):
+${basis}
+
+الطلبات:
+أولاً: قبول الدعوى شكلاً.
+ثانياً: ........................................................
+ثالثاً: إلزام المدعى عليه بالمصروفات ومقابل أتعاب المحاماة.
+
+ولسيادتكم وافر الاحترام والتقدير،
+
+الوكيل
+المحامي: {{اسم_المحامي}}
+التوقيع: ........................
+التاريخ: {{تاريخ_اليوم}}${sourcesNote}`;
+  }
+
+  /** بحث موحّد خفيف: مكتبة + قضايا + ملاحظات */
+  function unifiedSearch(query, opts) {
+    opts = opts || {};
+    const limitLib = opts.libLimit || 10;
+    const limitCases = opts.caseLimit || 8;
+    const nq = normalize(query);
+    const tokens = nq.split(/\s+/).filter(t => t.length >= 2);
+    const libHits = retrieve(query, { limit: limitLib });
+
+    const cases = (window.DB && DB.get) ? (DB.get('cases') || []) : [];
+    const caseHits = [];
+    for (const c of cases) {
+      const blob = normalize([c.number, c.subject, c.type, c.stage, c.court, c.notes, c.opponent,
+        (c.parties || []).map(p => p.name).join(' ')].join(' '));
+      let score = 0;
+      if (blob.includes(nq)) score += 50;
+      tokens.forEach(t => { if (blob.includes(t)) score += 10; });
+      if (score > 0) caseHits.push({ id: c.id, number: c.number, subject: c.subject, type: c.type, score });
+    }
+    caseHits.sort((a, b) => b.score - a.score);
+
+    const notes = (window.DB && DB.get) ? (DB.get('notes') || []) : [];
+    const noteHits = [];
+    for (const n of notes) {
+      const blob = normalize((n.title || '') + ' ' + (n.content || ''));
+      let score = 0;
+      if (blob.includes(nq)) score += 40;
+      tokens.forEach(t => { if (blob.includes(t)) score += 8; });
+      if (score > 0) noteHits.push({ id: n.id, title: n.title, caseId: n.caseId, score, snip: (n.content || '').slice(0, 120) });
+    }
+    noteHits.sort((a, b) => b.score - a.score);
+
+    return {
+      library: libHits,
+      cases: caseHits.slice(0, limitCases),
+      notes: noteHits.slice(0, 6)
+    };
+  }
+
+  return {
+    normalize,
+    expandQuery,
+    retrieve,
+    suggestForCase,
+    buildLawsuitDraft,
+    buildLegalBasis,
+    unifiedSearch,
+    TYPE_KEYWORDS,
+    SYNONYMS
+  };
+})();
+
+
 function normalizeLibQuery(s) {
   return (s || '').toString().trim().toLowerCase()
     .replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي')
@@ -5338,46 +5662,48 @@ function searchLibrary() {
   if (result) {
     result.style.display = 'block';
     result.classList.add('show');
-    result.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">🔍 جاري البحث في النصوص...</div>';
+    result.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">🔍 جاري البحث الذكي في النصوص...</div>';
   }
 
   // yield to UI
   setTimeout(() => {
-    const nq = normalizeLibQuery(q);
-    const tokens = nq.split(/\s+/).filter(t => t.length >= 2);
-    const idx = libSearchIndex();
     const catFilter = (document.getElementById('libraryCategory') || {}).value || '';
-
-    const scored = [];
-    const source = idx.length ? idx : libCatalog().map(c => ({ id: c.id, title: c.title, category: c.category, file: c.file, text: '' }));
-    for (const doc of source) {
-      if (catFilter && doc.category !== catFilter) continue;
-      const nt = normalizeLibQuery(doc.title || '');
-      const ntext = normalizeLibQuery((doc.text || '').slice(0, 80000));
-      let score = 0;
-      if (nt.includes(nq)) score += 100;
-      tokens.forEach(t => {
-        if (nt.includes(t)) score += 25;
-        if (ntext.includes(t)) score += 5;
-      });
-      // phrase bonus in body
-      if (nq.length >= 4 && ntext.includes(nq)) score += 40;
-      if (score > 0) {
-        // snippet
-        let snip = '';
-        const rawText = doc.text || '';
-        const pos = normalizeLibQuery(rawText).indexOf(tokens[0] || nq);
-        if (pos >= 0) {
-          const start = Math.max(0, pos - 40);
-          snip = rawText.slice(start, start + 160).replace(/\s+/g, ' ').trim();
-          if (start > 0) snip = '…' + snip;
-          if (start + 160 < rawText.length) snip += '…';
+    let top = [];
+    if (window.MK_SMART && typeof MK_SMART.retrieve === 'function') {
+      top = MK_SMART.retrieve(q, { limit: 80, categoryFilter: catFilter || undefined });
+    } else {
+      const nq = normalizeLibQuery(q);
+      const tokens = nq.split(/\s+/).filter(t => t.length >= 2);
+      const idx = libSearchIndex();
+      const scored = [];
+      const source = idx.length ? idx : libCatalog().map(c => ({ id: c.id, title: c.title, category: c.category, file: c.file, text: '' }));
+      for (const doc of source) {
+        if (catFilter && doc.category !== catFilter) continue;
+        const nt = normalizeLibQuery(doc.title || '');
+        const ntext = normalizeLibQuery((doc.text || '').slice(0, 80000));
+        let score = 0;
+        if (nt.includes(nq)) score += 100;
+        tokens.forEach(t => {
+          if (nt.includes(t)) score += 25;
+          if (ntext.includes(t)) score += 5;
+        });
+        if (nq.length >= 4 && ntext.includes(nq)) score += 40;
+        if (score > 0) {
+          let snip = '';
+          const rawText = doc.text || '';
+          const pos = normalizeLibQuery(rawText).indexOf(tokens[0] || nq);
+          if (pos >= 0) {
+            const start = Math.max(0, pos - 40);
+            snip = rawText.slice(start, start + 160).replace(/\s+/g, ' ').trim();
+            if (start > 0) snip = '…' + snip;
+            if (start + 160 < rawText.length) snip += '…';
+          }
+          scored.push({ id: doc.id, title: doc.title, category: doc.category, file: doc.file, score, snip });
         }
-        scored.push({ id: doc.id, title: doc.title, category: doc.category, file: doc.file, score, snip });
       }
+      scored.sort((a,b) => b.score - a.score || a.title.localeCompare(b.title, 'ar'));
+      top = scored.slice(0, 80);
     }
-    scored.sort((a,b) => b.score - a.score || a.title.localeCompare(b.title, 'ar'));
-    const top = scored.slice(0, 80);
 
     if (browse) browse.innerHTML = '';
     const countEl = document.getElementById('libraryCount');
@@ -8296,7 +8622,6 @@ window.addEventListener('focus', function() {
 <script src="mk-config.js"></script>
 <script src="mk-details.js"></script>
 <script src="mk-editor.js"></script>
-<script src="mk-notify.js"></script>
 <script src="mk-cloud.js"></script>
 </body>
 </html>
