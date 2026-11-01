@@ -17,6 +17,7 @@ const CORE = [
   "./apple-touch-icon.png",
   "./library/catalog.js",
   "./library/search-index.js"
+  "./mk-lawyer-assistant.js",
 ];
 
 self.addEventListener("install", (e) => {
