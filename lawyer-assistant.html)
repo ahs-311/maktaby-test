@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مساعد المحامي الرقمي الشامل</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #f4f7fc; --bg-secondary: #ffffff; --bg-card: #ffffff;
+            --text-primary: #1e293b; --text-secondary: #475569; --border-color: #e2e8f0;
+            --accent: #0f3b5e; --accent-light: #1e5f8a; --accent-hover: #0a2a42;
+            --gold: #b8860b; --gold-light: #d4a017; --success: #10b981;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+            --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.08);
+            --radius: 12px; --radius-sm: 8px; --transition: all 0.3s ease;
+        }
+        body.dark-mode {
+            --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-card: #1e293b;
+            --text-primary: #f1f5f9; --text-secondary: #94a3b8; --border-color: #334155;
+            --accent: #3b82f6; --accent-light: #60a5fa; --accent-hover: #2563eb;
+            --gold: #fbbf24; --gold-light: #fcd34d;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.3); --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.5);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-primary); transition: var(--transition); line-height: 1.7; min-height: 100vh; padding: 20px; }
+        .app-container { max-width: 1200px; margin: 0 auto; }
+        .app-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; padding: 20px 25px; background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .app-header h1 { font-size: 1.6rem; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .app-header h1 i { color: var(--gold); }
+        .theme-toggle { background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 15px; border-radius: 30px; cursor: pointer; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: var(--transition); font-family: 'Cairo', sans-serif; }
+        .theme-toggle:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .tabs-nav { display: flex; flex-wrap: wrap; gap: 8px; background: var(--bg-card); padding: 10px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .tab-btn { flex: 1; min-width: 140px; padding: 12px 16px; border: none; background: transparent; color: var(--text-secondary); font-size: 0.95rem; font-weight: 600; border-radius: var(--radius-sm); cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Cairo', sans-serif; }
+        .tab-btn:hover { background: var(--bg-primary); color: var(--accent); }
+        .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 4px 12px rgba(15,59,94,0.3); }
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 25px; margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .card-title { font-size: 1.2rem; font-weight: 700; color: var(--accent); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--gold); display: flex; align-items: center; gap: 10px; }
+        .card-title i { color: var(--gold); }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); font-size: 0.95rem; }
+        .form-group label .required { color: #ef4444; margin-right: 3px; }
+        .form-control { width: 100%; padding: 12px 15px; border: 1.5px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem; font-family: 'Cairo', sans-serif; transition: var(--transition); outline: none; }
+        .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15,59,94,0.1); }
+        textarea.form-control { resize: vertical; min-height: 100px; line-height: 1.8; }
+        select.form-control { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: left 15px center; padding-left: 40px; }
+        body.dark-mode select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+        .btn { padding: 12px 24px; border: none; border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Cairo', sans-serif; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 6px 15px rgba(15,59,94,0.3); }
+        .btn-gold { background: var(--gold); color: #fff; }
+        .btn-gold:hover { background: var(--gold-light); transform: translateY(-2px); box-shadow: 0 6px 15px rgba(184,134,11,0.3); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #059669; transform: translateY(-2px); }
+        .btn-sm { padding: 8px 16px; font-size: 0.85rem; }
+        .btn-block { width: 100%; }
+        .result-box { margin-top: 20px; padding: 20px; background: var(--bg-primary); border: 1.5px dashed var(--border-color); border-radius: var(--radius-sm); min-height: 80px; white-space: pre-wrap; line-height: 2; color: var(--text-primary); font-size: 0.95rem; position: relative; }
+        .result-box:empty::before { content: 'سيظهر النص المولّد هنا...'; color: var(--text-secondary); font-style: italic; }
+        .result-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+        .search-bar { position: relative; margin-bottom: 20px; }
+        .search-bar input { padding-right: 45px; }
+        .search-bar i { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+        .filter-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .filter-chip { padding: 6px 16px; border-radius: 30px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.85rem; cursor: pointer; transition: var(--transition); font-weight: 600; font-family: 'Cairo', sans-serif; }
+        .filter-chip:hover, .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .platforms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        .platform-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 18px; transition: var(--transition); display: flex; flex-direction: column; gap: 10px; }
+        .platform-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-3px); border-color: var(--gold); }
+        .platform-card .platform-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .platform-card h3 { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+        .platform-card .platform-badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 20px; background: var(--gold); color: #fff; font-weight: 700; white-space: nowrap; }
+        .platform-card p { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
+        .platform-card .platform-link { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); text-decoration: none; font-weight: 700; font-size: 0.85rem; margin-top: auto; transition: var(--transition); }
+        .platform-card .platform-link:hover { color: var(--gold); }
+        .no-results { grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-secondary); font-style: italic; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--success); color: #fff; padding: 12px 24px; border-radius: 30px; font-weight: 700; box-shadow: var(--shadow-lg); opacity: 0; transition: all 0.4s ease; z-index: 9999; display: flex; align-items: center; gap: 8px; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .app-footer { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.85rem; margin-top: 10px; }
+        @media (max-width: 768px) { body { padding: 10px; } .app-header h1 { font-size: 1.2rem; } .tab-btn { min-width: 100px; font-size: 0.85rem; padding: 10px; } .card { padding: 18px; } }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1><i class="fas fa-scale-balanced"></i> مساعد المحامي الرقمي الشامل</h1>
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon" id="themeIcon"></i>
+                <span id="themeText">الوضع الليلي</span>
+            </button>
+        </header>
+
+        <nav class="tabs-nav" role="tablist">
+            <button class="tab-btn active" data-tab="platforms"><i class="fas fa-landmark"></i> المنصات الحكومية</button>
+            <button class="tab-btn" data-tab="generator"><i class="fas fa-file-signature"></i> مولد الصيغ</button>
+            <button class="tab-btn" data-tab="notices"><i class="fas fa-bullhorn"></i> الإنذارات</button>
+            <button class="tab-btn" data-tab="requests"><i class="fas fa-file-lines"></i> الطلبات الجاهزة</button>
+        </nav>
+
+        <section class="tab-content active" id="tab-platforms">
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-globe"></i> دليل المنصات الحكومية والقضائية</h2>
+                <div class="search-bar">
+                    <input type="text" class="form-control" id="platformSearch" placeholder="ابحث عن منصة أو خدمة...">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="filter-group" id="filterGroup">
+                    <button class="filter-chip active" data-filter="all">الكل</button>
+                    <button class="filter-chip" data-filter="court">المحاكم</button>
+                    <button class="filter-chip" data-filter="ministry">الوزارات</button>
+                    <button class="filter-chip" data-filter="gazette">الجريدة الرسمية</button>
+                    <button class="filter-chip" data-filter="cassation">النقض</button>
+                    <button class="filter-chip" data-filter="service">خدمات</button>
+                </div>
+                <div class="platforms-grid" id="platformsGrid"></div>
+            </div>
+        </section>
+
+        <section class="tab-content" id="tab-generator">
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-pen-fancy"></i> مولد الصيغ والمذكرات والدعاوى</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="docType">نوع المستند <span class="required">*</span></label>
+                        <select class="form-control" id="docType">
+                            <option value="">اختر نوع المستند...</option>
+                            <option value="lawsuit">صحيفة دعوى</option>
+                            <option value="defense">مذكرة دفاع</option>
+                            <option value="appeal">استئناف</option>
+                            <option value="cassation_memo">مذكرة نقض</option>
+                            <option value="objection">اعتراض</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="caseType">نوع القضية <span class="required">*</span></label>
+                        <select class="form-control" id="caseType">
+                            <option value="">اختر نوع القضية...</option>
+                            <option value="civil">مدني</option>
+                            <option value="commercial">تجاري</option>
+                            <option value="family">أحوال شخصية</option>
+                            <option value="criminal">جنائي</option>
+                            <option value="administrative">إداري</option>
+                            <option value="labor">عمالي</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label for="plaintiff">المدعي / الطاعن</label><input type="text" class="form-control" id="plaintiff" placeholder="اسم المدعي أو الطاعن..."></div>
+                <div class="form-group"><label for="defendant">المدعى عليه / المطعون ضده</label><input type="text" class="form-control" id="defendant" placeholder="اسم المدعى عليه أو المطعون ضده..."></div>
+                <div class="form-group"><label for="facts">الوقائع <span class="required">*</span></label><textarea class="form-control" id="facts" placeholder="اكتب وقائع القضية بالتفصيل..."></textarea></div>
+                <div class="form-group"><label for="requestsText">المطلوب (الطلبات)</label><textarea class="form-control" id="requestsText" placeholder="اكتب الطلبات المطلوبة..."></textarea></div>
+                <button class="btn btn-primary btn-block" id="generateDocBtn"><i class="fas fa-wand-magic-sparkles"></i> توليد الصياغة القانونية</button>
+                <div class="result-box" id="docResult"></div>
+                <div class="result-actions" id="docActions" style="display: none;">
+                    <button class="btn btn-success btn-sm" onclick="copyToClipboard('docResult')"><i class="fas fa-copy"></i> نسخ النص</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-content" id="tab-notices">
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-bullhorn"></i> مولّد الإنذارات والإعلانات القانونية</h2>
+                <div class="form-group">
+                    <label for="noticeType">نوع الإنذار <span class="required">*</span></label>
+                    <select class="form-control" id="noticeType">
+                        <option value="">اختر نوع الإنذار...</option>
+                        <option value="payment">تكليف بالوفاء</option>
+                        <option value="hand_to_hand">إنذار يد بيد</option>
+                        <option value="evacuation">إنذار بالإخلاء</option>
+                        <option value="termination">إنذار بفسخ العقد</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label for="notifier">المُنذِر (الطرف الأول) <span class="required">*</span></label><input type="text" class="form-control" id="notifier" placeholder="اسم المُنذِر..."></div>
+                    <div class="form-group"><label for="notified">المُنذَر إليه (الطرف الثاني) <span class="required">*</span></label><input type="text" class="form-control" id="notified" placeholder="اسم المُنذَر إليه..."></div>
+                </div>
+                <div class="form-group"><label for="noticeAmount">المبلغ / قيمة الالتزام (إن وجد)</label><input type="text" class="form-control" id="noticeAmount" placeholder="مثال: 50,000 جنيه..."></div>
+                <div class="form-group"><label for="noticeDeadline">المهلة الزمنية الممنوحة <span class="required">*</span></label><input type="text" class="form-control" id="noticeDeadline" placeholder="مثال: 15 يوماً من تاريخ الإعلان..."></div>
+                <div class="form-group"><label for="noticeReason">الأسباب والتفاصيل <span class="required">*</span></label><textarea class="form-control" id="noticeReason" placeholder="اكتب أسباب الإنذار والتفاصيل..."></textarea></div>
+                <button class="btn btn-gold btn-block" id="generateNoticeBtn"><i class="fas fa-gavel"></i> توليد صيغة الإنذار</button>
+                <div class="result-box" id="noticeResult"></div>
+                <div class="result-actions" id="noticeActions" style="display: none;">
+                    <button class="btn btn-success btn-sm" onclick="copyToClipboard('noticeResult')"><i class="fas fa-copy"></i> نسخ النص</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-content" id="tab-requests">
+            <div class="card">
+                <h2 class="card-title"><i class="fas fa-file-circle-check"></i> الطلبات الجاهزة</h2>
+                <div class="form-group">
+                    <label for="requestType">اختر نوع الطلب <span class="required">*</span></label>
+                    <select class="form-control" id="requestType">
+                        <option value="">اختر نوع الطلب...</option>
+                        <option value="no_appeal_cert">شهادة عدم حصول استئناف</option>
+                        <option value="document_permit">تصريح بمستند</option>
+                        <option value="official_copy">صورة رسمية من حكم</option>
+                        <option value="case_status">استعلام عن حالة قضية</option>
+                        <option value="execution_request">طلب تنفيذ</option>
+                        <option value="adjournment">طلب تأجيل جلسة</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label for="reqApplicant">مقدم الطلب <span class="required">*</span></label><input type="text" class="form-control" id="reqApplicant" placeholder="اسم مقدم الطلب..."></div>
+                    <div class="form-group"><label for="reqCaseNo">رقم القضية / المحضر</label><input type="text" class="form-control" id="reqCaseNo" placeholder="مثال: 1234 لسنة 2024..."></div>
+                </div>
+                <div class="form-group"><label for="reqCourt">المحكمة / الجهة المختصة <span class="required">*</span></label><input type="text" class="form-control" id="reqCourt" placeholder="مثال: محكمة جنوب القاهرة الابتدائية..."></div>
+                <div class="form-group"><label for="reqDetails">تفاصيل إضافية</label><textarea class="form-control" id="reqDetails" placeholder="أي تفاصيل إضافية..."></textarea></div>
+                <button class="btn btn-primary btn-block" id="generateRequestBtn"><i class="fas fa-file-export"></i> توليد الطلب</button>
+                <div class="result-box" id="requestResult"></div>
+                <div class="result-actions" id="requestActions" style="display: none;">
+                    <button class="btn btn-success btn-sm" onclick="copyToClipboard('requestResult')"><i class="fas fa-copy"></i> نسخ النص</button>
+                </div>
+            </div>
+        </section>
+
+        <footer class="app-footer">
+            <p>© 2025 مساعد المحامي الرقمي الشامل — جميع الحقوق محفوظة</p>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage">تم النسخ بنجاح!</span>
+    </div>
+
+    <script>
+        /* ================================================================
+           1. نظام التبويبات
+           ================================================================ */
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        /* ================================================================
+           2. الوضع الليلي / النهاري
+           ================================================================ */
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const themeText = document.getElementById('themeText');
+
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('dark-mode')) {
+                themeIcon.className = 'fas fa-sun';
+                themeText.textContent = 'الوضع النهاري';
+            } else {
+                themeIcon.className = 'fas fa-moon';
+                themeText.textContent = 'الوضع الليلي';
+            }
+        });
+
+        /* ================================================================
+           3. بيانات المنصات الحكومية (عدّلها أو أضف إليها كما تشاء)
+           ================================================================ */
+        const platformsData = [
+            { name: 'بوابة المحاكم المصرية', desc: 'الاستعلام عن القضايا والجلسات ورفع الدعاوى', category: 'court', badge: 'المحاكم', link: 'https://www.court.gov.eg' },
+            { name: 'وزارة العدل المصرية', desc: 'خدمات التوثيق والشهر العقاري والتصديق', category: 'ministry', badge: 'الوزارة', link: 'https://www.moj.gov.eg' },
+            { name: 'الجريدة الرسمية', desc: 'نشر القوانين والقرارات الجمهورية', category: 'gazette', badge: 'الجريدة', link: 'https://www.cc.gov.eg' },
+            { name: 'قاعدة بيانات محكمة النقض', desc: 'البحث في أحكام النقض والمبادئ القانونية', category: 'cassation', badge: 'النقض', link: 'https://www.cc.gov.eg/cassation' },
+            { name: 'النيابة العامة', desc: 'خدمات النيابة العامة والاستعلام عن المحاضر', category: 'ministry', badge: 'النيابة', link: 'https://www.publicprosecution.gov.eg' },
+            { name: 'مصلحة الشهر العقاري', desc: 'تسجيل العقارات والتوثيق', category: 'service', badge: 'خدمة', link: 'https://www.realestate.gov.eg' },
+            { name: 'الهيئة العامة للاستعلامات', desc: 'بوابة المعلومات الحكومية', category: 'ministry', badge: 'الوزارة', link: 'https://www.sis.gov.eg' },
+            { name: 'مجلس الدولة المصري', desc: 'قضاء الإلغاء والتأديب والفتوى', category: 'court', badge: 'المحاكم', link: 'https://www.council.gov.eg' },
+            { name: 'المحكمة الدستورية العليا', desc: 'الرقابة على دستورية القوانين', category: 'court', badge: 'المحاكم', link: 'https://www.scc.gov.eg' },
+            { name: 'الاستعلام عن رول الجلسات', desc: 'خدمة استعلام عن رول المحاكم', category: 'service', badge: 'خدمة', link: '#' },
+            { name: 'استخراج صور رسمية من الأحكام', desc: 'طلب صور رسمية من قلم المحكمة', category: 'service', badge: 'خدمة', link: '#' },
+            { name: 'رفع دعوى إلكترونياً', desc: 'خدمة رفع الدعاوى عبر بوابة المحاكم', category: 'service', badge: 'خدمة', link: '#' }
+        ];
+
+        const platformsGrid = document.getElementById('platformsGrid');
+        const platformSearch = document.getElementById('platformSearch');
+        const filterChips = document.querySelectorAll('.filter-chip');
+        let currentFilter = 'all';
+        let currentSearch = '';
+
+        function renderPlatforms() {
+            const filtered = platformsData.filter(p => {
+                const matchesFilter = currentFilter === 'all' || p.category === currentFilter;
+                const matchesSearch = p.name.includes(currentSearch) || p.desc.includes(currentSearch);
+                return matchesFilter && matchesSearch;
+            });
+            if (filtered.length === 0) {
+                platformsGrid.innerHTML = '<p class="no-results">لا توجد نتائج مطابقة لبحثك.</p>';
+                return;
+            }
+            platformsGrid.innerHTML = filtered.map(p => `
+                <div class="platform-card">
+                    <div class="platform-header">
+                        <h3>${p.name}</h3>
+                        <span class="platform-badge">${p.badge}</span>
+                    </div>
+                    <p>${p.desc}</p>
+                    <a href="${p.link}" target="_blank" rel="noopener" class="platform-link">
+                        زيارة المنصة <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        platformSearch.addEventListener('input', (e) => {
+            currentSearch = e.target.value.trim();
+            renderPlatforms();
+        });
+
+        filterChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                filterChips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                currentFilter = chip.dataset.filter;
+                renderPlatforms();
+            });
+        });
+
+        renderPlatforms();
+
+        /* ================================================================
+           4. دوال مساعدة: التوست + النسخ
+           ================================================================ */
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function copyToClipboard(elementId) {
+            const el = document.getElementById(elementId);
+            const text = el.innerText.trim();
+            if (!text || text.includes('سيظهر النص المولّد هنا')) {
+                showToast('لا يوجد نص لنسخه');
+                return;
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('تم النسخ بنجاح!');
+                }).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); showToast('تم النسخ بنجاح!'); }
+            catch (e) { showToast('تعذّر النسخ'); }
+            document.body.removeChild(ta);
+        }
+
+        /* ================================================================
+           5. مولد الصيغ والمذكرات والدعاوى
+           ================================================================ */
+        const docTypeLabels = {
+            lawsuit: 'صحيفة دعوى', defense: 'مذكرة دفاع', appeal: 'استئناف',
+            cassation_memo: 'مذكرة نقض', objection: 'اعتراض'
+        };
+        const caseTypeLabels = {
+            civil: 'مدني', commercial: 'تجاري', family: 'أحوال شخصية',
+            criminal: 'جنائي', administrative: 'إداري', labor: 'عمالي'
+        };
+
+        document.getElementById('generateDocBtn').addEventListener('click', () => {
+            const docType = document.getElementById('docType').value;
+            const caseType = document.getElementById('caseType').value;
+            const plaintiff = document.getElementById('plaintiff').value.trim();
+            const defendant = document.getElementById('defendant').value.trim();
+            const facts = document.getElementById('facts').value.trim();
+            const reqs = document.getElementById('requestsText').value.trim();
+
+            if (!docType || !caseType || !facts) {
+                showToast('يرجى استكمال الحقول الإلزامية (*)');
+                return;
+            }
+
+            const today = new Date().toLocaleDateString('ar-EG');
+            const docTitle = docTypeLabels[docType] || 'مستند';
+            const caseLabel = caseTypeLabels[caseType] || '';
+
+            let text = 'بسم الله الرحمن الرحيم\n\n';
+            text += `${docTitle} — قضية ${caseLabel}\n`;
+            text += `التاريخ: ${today}\n\n`;
+            text += `المدعي/الطاعن: ${plaintiff || '................'}\n`;
+            text += `المدعى عليه/المطعون ضده: ${defendant || '................'}\n\n`;
+            text += `الوقائع:\n${facts}\n\n`;
+            text += `الطلبات:\n${reqs || 'إلزام المدعى عليه بالطلبات المذكورة أعلاه مع تحميله المصاريف وأتعاب المحاماة.'}\n\n`;
+            text += `لذلك نلتمس من عدالتكم القضاء بما سبق.\n\n`;
+            text += `مقدمه المحامي:\n........................\n`;
+
+            const result = document.getElementById('docResult');
+            result.textContent = text;
+            document.getElementById('docActions').style.display = 'flex';
+        });
+
+        /* ================================================================
+           6. مولد الإنذارات
+           ================================================================ */
+        const noticeTypeLabels = {
+            payment: 'تكليف بالوفاء', hand_to_hand: 'إنذار يد بيد',
+            evacuation: 'إنذار بالإخلاء', termination: 'إنذار بفسخ العقد'
+        };
+
+        document.getElementById('generateNoticeBtn').addEventListener('click', () => {
+            const type = document.getElementById('noticeType').value;
+            const notifier = document.getElementById('notifier').value.trim();
+            const notified = document.getElementById('notified').value.trim();
+            const amount = document.getElementById('noticeAmount').value.trim();
+            const deadline = document.getElementById('noticeDeadline').value.trim();
+            const reason = document.getElementById('noticeReason').value.trim();
+
+            if (!type || !notifier || !notified || !deadline || !reason) {
+                showToast('يرجى استكمال الحقول الإلزامية (*)');
+                return;
+            }
+
+            const today = new Date().toLocaleDateString('ar-EG');
+            const typeLabel = noticeTypeLabels[type] || 'إنذار';
+
+            let text = 'بسم الله الرحمن الرحيم\n\n';
+            text += `${typeLabel}\n`;
+            text += `التاريخ: ${today}\n\n`;
+            text += `المُنذِر: ${notifier}\n`;
+            text += `المُنذَر إليه: ${notified}\n\n`;
+            text += `الموضوع: ${typeLabel}\n\n`;
+            if (amount) text += `المبلغ/الالتزام: ${amount}\n`;
+            text += `المهلة: ${deadline}\n\n`;
+            text += `الأسباب:\n${reason}\n\n`;
+            text += `وبناءً على ما سبق، فإننا ننذركم بضرورة تنفيذ التزاماتكم خلال المهلة المحددة، وإلا سنضطر آسفين لاتخاذ كافة الإجراءات القانونية اللازمة.\n\n`;
+            text += `وإلا كان هذا الإنذار بمثابة إعلان رسمي بذلك.\n\n`;
+            text += `المُنذِر:\n........................\n`;
+            text += `المحضر:\n........................\n`;
+
+            document.getElementById('noticeResult').textContent = text;
+            document.getElementById('noticeActions').style.display = 'flex';
+        });
+
+        /* ================================================================
+           7. مولد الطلبات الجاهزة
+           ================================================================ */
+        const requestTypeLabels = {
+            no_appeal_cert: 'شهادة عدم حصول استئناف',
+            document_permit: 'تصريح بمستند',
+            official_copy: 'صورة رسمية من حكم',
+            case_status: 'استعلام عن حالة قضية',
+            execution_request: 'طلب تنفيذ',
+            adjournment: 'طلب تأجيل جلسة'
+        };
+
+        document.getElementById('generateRequestBtn').addEventListener('click', () => {
+            const type = document.getElementById('requestType').value;
+            const applicant = document.getElementById('reqApplicant').value.trim();
+            const caseNo = document.getElementById('reqCaseNo').value.trim();
+            const court = document.getElementById('reqCourt').value.trim();
+            const details = document.getElementById('reqDetails').value.trim();
+
+            if (!type || !applicant || !court) {
+                showToast('يرجى استكمال الحقول الإلزامية (*)');
+                return;
+            }
+
+            const today = new Date().toLocaleDateString('ar-EG');
+            const typeLabel = requestTypeLabels[type] || 'طلب';
+
+            let text = 'بسم الله الرحمن الرحيم\n\n';
+            text += `إلى السيد/ رئيس ${court}\n`;
+            text += `التاريخ: ${today}\n\n`;
+            text += `مقدم الطلب: ${applicant}\n`;
+            if (caseNo) text += `رقم القضية/المحضر: ${caseNo}\n`;
+            text += `\nالموضوع: ${typeLabel}\n\n`;
+            text += `الطلب:\n`;
+            text += `أتقدم لسيادتكم بطلب ${typeLabel}`;
+            if (caseNo) text += ` بخصوص القضية/المحضر رقم ${caseNo}`;
+            text += `.\n`;
+            if (details) text += `\nتفاصيل إضافية:\n${details}\n`;
+            text += `\nوتفضلوا بقبول وافر الاحترام والتقدير.\n\n`;
+            text += `مقدم الطلب:\n${applicant}\n`;
+            text += `التوقيع: ........................\n`;
+
+            document.getElementById('requestResult').textContent = text;
+            document.getElementById('requestActions').style.display = 'flex';
+        });
+    </script>
+</body>
+</html>
