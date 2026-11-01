@@ -1174,7 +1174,6 @@ img,svg,video,canvas{max-width:100%}
 
     <div class="nav-section">الأدوات القانونية</div>
     <button class="nav-item" data-page="lawsuits"><span class="icon">⚖️</span> صحف الدعاوى (AI)</button>
-    <button class="nav-item" data-page="assistant"><span class="icon">🤖</span> المساعد الذكي</button>
     <button class="nav-item" data-page="conflict"><span class="icon">🔎</span> فحص التعارض</button>
     <button class="nav-item" data-page="calculators"><span class="icon">🧮</span> الحاسبات</button>
     <button class="nav-item" data-page="deadlines"><span class="icon">⏱️</span> المدد القانونية</button>
@@ -1235,7 +1234,6 @@ img,svg,video,canvas{max-width:100%}
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('agenda')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('agenda')"><div class="icon">📅</div><div class="label">جلسات هذا الأسبوع</div><div class="value" id="statSessions">0</div></div>
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('calendar')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('calendar')"><div class="icon">⚠️</div><div class="label">مواعيد قريبة (7 أيام)</div><div class="value" id="statDeadlines">0</div></div>
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('billing')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('billing')"><div class="icon">💰</div><div class="label">فواتير معلقة</div><div class="value" id="statInvoices">0</div></div>
-        <div class="stat-card" role="button" tabindex="0" onclick="showPage('assistant')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('assistant')"><div class="icon">🤖</div><div class="label">المساعد الذكي</div><div class="value" style="font-size:14px;">محلي+خارجي</div></div>
         <div class="stat-card" role="button" tabindex="0" onclick="showPage('cases')" onkeydown="if(event.key==='Enter'||event.key===' ')showPage('cases')"><div class="icon">✅</div><div class="label">قضايا منتهية</div><div class="value" id="statClosed">0</div></div>
       </div>
 
@@ -1581,8 +1579,8 @@ img,svg,video,canvas{max-width:100%}
     <!-- LAWSUITS AI -->
     <div class="page" id="page-lawsuits">
       <div class="ai-box">
-        <h2>⚖️ إنشاء صحيفة دعوى بالذكاء الاصطناعي المحلي</h2>
-        <p>اكتب نوع الدعوى والتفاصيل — النظام يبحث عميقًا داخل مواد المكتبة المحلية مادةً بمادة، يستخرج السند، ويعرض المصادر مع رقم المادة.</p>
+        <h2>⚖️ إنشاء صحيفة دعوى بالذكاء الاصطناعي</h2>
+        <p>اكتب نوع الدعوى والتفاصيل، وسيتم إعداد مسودة منظمة قابلة للمراجعة والتعديل.</p>
         <div class="ai-input-row">
           <input type="text" id="lawsuitQuery" placeholder="مثال: دعوى صحة ونفاذ عقد بيع شقة في المعادي..." />
           <button onclick="generateLawsuit()">إنشاء الصحيفة</button>
@@ -1765,12 +1763,11 @@ img,svg,video,canvas{max-width:100%}
     <!-- LIBRARY -->
     <div class="page" id="page-library">
       <div class="ai-box" style="padding:20px;">
-        <h2 style="font-size:18px;">📚 المكتبة القانونية — بحث ذكي محلي</h2>
-        <p style="margin-bottom:12px;">بحث عميق داخل نصوص القوانين مادةً بمادة (وليس العناوين فقط)، مع مرادفات قانونية وربط تلقائي بملفات القضايا.</p>
+        <h2 style="font-size:18px;">📚 المكتبة القانونية</h2>
+        <p style="margin-bottom:12px;">تصفح وابحث في نصوص القوانين المصرية (بحث في العناوين والنص الكامل)</p>
         <div class="ai-input-row">
           <input type="text" id="libraryQuery" placeholder="مثال: المادة 63 مرافعات / التقادم / قانون المحاماة / الإيجار..." onkeydown="if(event.key==='Enter')searchLibrary()" />
-          <button type="button" onclick="searchLibrary()">بحث محلي</button>
-          <button type="button" class="btn btn-outline" onclick="mkLibraryExternalExpand()" title="يتطلب Gemini من الإعدادات">بحث موسّع (خارجي)</button>
+          <button type="button" onclick="searchLibrary()">بحث</button>
         </div>
       </div>
       <div class="chip-row" id="libraryChips" style="margin-bottom:12px;"></div>
@@ -1801,48 +1798,7 @@ img,svg,video,canvas{max-width:100%}
     </div>
 
     <!-- FORMS -->
-    <div class="page" 
-    <!-- ASSISTANT: هجين محلي + خارجي -->
-    <div class="page" id="page-assistant">
-      <div class="ai-box">
-        <h2>🤖 المساعد الذكي — محلي + خارجي</h2>
-        <p style="margin-bottom:10px;">يبحث في مكتبتك وقضاياك محليًا، ويمكنه الاستعانة بـ Gemini عند تفعيل المفتاح في الإعدادات لتنظيم المكتب والتحليل والبحث الأوسع.</p>
-        <div id="mkAiStatus" style="font-size:13px;margin-bottom:12px;opacity:0.95;"></div>
-        <div class="ai-input-row">
-          <input type="text" id="mkAiQuery" placeholder="مثال: نظّم يومي غدًا / ما المواد المناسبة لدعوى نفقة؟ / لخّص قضايا الأسبوع..." onkeydown="if(event.key==='Enter')mkAiAsk()" />
-          <button type="button" onclick="mkAiAsk()">اسأل المساعد</button>
-        </div>
-      </div>
-      <div class="chip-row" style="margin-top:10px;">
-        <span class="chip" onclick="mkAiPreset('organize_today')">نظم يومي اليوم</span>
-        <span class="chip" onclick="mkAiPreset('week_cases')">ملخص قضايا الأسبوع</span>
-        <span class="chip" onclick="mkAiPreset('tasks_priority')">أولويات المهام</span>
-        <span class="chip" onclick="mkAiPreset('library_help')">ابحث في المكتبة عن نفقة</span>
-        <span class="chip" onclick="mkAiPreset('conflict_hint')">كيف أفحص التعارض؟</span>
-      </div>
-      <div class="card" style="margin-top:14px;">
-        <div class="card-header"><h2>النتيجة</h2></div>
-        <div class="card-body">
-          <div id="mkAiResult" style="white-space:pre-wrap;line-height:1.85;font-size:14px;min-height:120px;color:var(--text-muted);">اكتب سؤالك أو اختر اختصارًا أعلاه. بدون مفتاح Gemini يعمل الوضع المحلي فقط (مكتبة + بيانات المكتب).</div>
-          <div id="mkAiLocalHits" style="margin-top:14px;"></div>
-        </div>
-      </div>
-      <div class="card" style="margin-top:14px;">
-        <div class="card-header"><h2>روابط سريعة لأقسام المكتب</h2></div>
-        <div class="card-body" style="display:flex;flex-wrap:wrap;gap:8px;">
-          <button class="btn btn-outline btn-sm" onclick="showPage('courtday')">يوم المحكمة</button>
-          <button class="btn btn-outline btn-sm" onclick="showPage('agenda')">الأجندة</button>
-          <button class="btn btn-outline btn-sm" onclick="showPage('tasks')">المهام</button>
-          <button class="btn btn-outline btn-sm" onclick="showPage('cases')">القضايا</button>
-          <button class="btn btn-outline btn-sm" onclick="showPage('library')">المكتبة</button>
-          <button class="btn btn-outline btn-sm" onclick="showPage('lawsuits')">صحف الدعاوى</button>
-          <button class="btn btn-outline btn-sm" onclick="showPage('conflict')">فحص التعارض</button>
-          <button class="btn btn-outline btn-sm" onclick="showPage('settings')">إعدادات Gemini</button>
-        </div>
-      </div>
-    </div>
-
-id="page-forms">
+    <div class="page" id="page-forms">
       <div class="calc-grid">
         <div class="calc-card" onclick="showFormTemplate('إنذار على يد محضر')"><div class="icon">📢</div><h3>إنذار على يد محضر</h3><p>نموذج إنذار رسمي</p></div>
         <div class="calc-card" onclick="showFormTemplate('طلب استخراج شهادة')"><div class="icon">📜</div><h3>طلب استخراج شهادة</h3><p>نموذج طلب رسمي</p></div>
@@ -1886,37 +1842,7 @@ id="page-forms">
 
     <!-- SETTINGS -->
     <div class="page" id="page-settings">
-      
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-header"><h2>🤖 الذكاء الاصطناعي الخارجي (Gemini)</h2></div>
-          <div class="card-body">
-            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
-              اختياري. عند إدخال مفتاح Gemini يعمل المساعد والبحث الموسّع وتوليد الصحف عبر الذكاء الخارجي مع الإبقاء على البحث المحلي في المكتبة.
-              المفتاح يُحفظ في هذا الجهاز فقط (localStorage) ولا يُرفع إلى Supabase.
-            </p>
-            <div class="form-group">
-              <label>مفتاح Gemini API</label>
-              <input type="password" id="mkGeminiKey" placeholder="AIza..." autocomplete="off" />
-            </div>
-            <div class="form-group">
-              <label>النموذج</label>
-              <select id="mkGeminiModel">
-                <option value="gemini-flash-latest">gemini-flash-latest (موصى به)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label><input type="checkbox" id="mkGeminiEnabled" /> تفعيل الذكاء الخارجي عند توفر الإنترنت</label>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button type="button" class="btn btn-primary btn-sm" onclick="mkAiSaveSettings()">حفظ إعدادات الذكاء</button>
-              <button type="button" class="btn btn-outline btn-sm" onclick="mkAiTestConnection()">اختبار الاتصال</button>
-            </div>
-            <p id="mkGeminiSaveMsg" style="margin-top:10px;font-size:13px;"></p>
-          </div>
-        </div>
-<div class="two-col">
+      <div class="two-col">
         <div class="card">
           <div class="card-header"><h2>maktaby+ — النسخ الاحتياطي واستيراد/تصدير البيانات</h2></div>
           <div class="card-body">
@@ -2919,7 +2845,6 @@ function viewClient(id) {
     <h4 style="margin:16px 0 10px;font-size:15px;">المستندات (${docs.length})</h4>
     ${docs.length ? docs.map(d => `<div class="note-item"><strong>${esc(d.title)}</strong> <span class="badge badge-blue">${esc(d.category)}</span></div>`).join('') : none('لا مستندات')}
 
-    ${smartLibHtml}
     <h4 style="margin:16px 0 10px;font-size:15px;">الملاحظات (${notes.length})</h4>
     ${notes.length ? notes.map(n => `<div class="note-item"><div class="note-meta"><span>${esc(n.title) || 'ملاحظة'}</span><span>${formatDate(n.createdAt)}</span></div>${esc(n.content)}</div>`).join('') : none('لا ملاحظات')}
   `;
@@ -3220,29 +3145,6 @@ function viewCase(id) {
     return 'badge-red';
   };
 
-  // اقتراحات ذكية من المكتبة المحلية
-  let smartLibHtml = '';
-  try {
-    if (window.MK_SMART && typeof MK_SMART.suggestForCase === 'function') {
-      const sug = MK_SMART.suggestForCase(c) || [];
-      if (sug.length) {
-        const subj = (c.subject || c.type || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        smartLibHtml = `<div style="margin:16px 0 12px;padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--bg);">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-            <h4 style="font-size:15px;margin:0;color:var(--accent);">🤖 مواد مقترحة من المكتبة (ربط ذكي)</h4>
-            <button class="btn btn-outline btn-sm" type="button" onclick="(function(){var el=document.getElementById('lawsuitQuery');if(el)el.value='${subj}';showPage('lawsuits');setTimeout(function(){generateLawsuit();},200);})()">إنشاء صحيفة من هذه القضية</button>
-          </div>
-          <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">اقتراحات مبنية على موضوع القضية ونوعها وملاحظاتها — بدون اتصال خارجي.</p>
-          ${sug.map((h,i) => `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${String(h.id||'').replace(/'/g,"\\'")}')">
-            <strong>${i+1}. ${esc(h.title||'')}</strong>
-            <div style="font-size:12px;color:var(--text-muted);">${esc(h.category||'')} · تطابق ${h.score||0}</div>
-            ${h.snip ? `<div style="font-size:12px;margin-top:4px;opacity:0.9;line-height:1.55;">${esc(h.snip)}</div>` : ''}
-          </div>`).join('')}
-        </div>`;
-      }
-    }
-  } catch (e) { console.warn('MK_SMART suggest', e); }
-
   document.getElementById('caseDetailBody').innerHTML = `
     <div class="detail-grid" style="margin-bottom:20px;">
       <div class="detail-item"><label>رقم القضية</label><div class="val">${esc(c.number)}</div></div>
@@ -3263,6 +3165,7 @@ function viewCase(id) {
       <div class="detail-item"><label>تاريخ الرفع</label><div class="val">${c.fileDate || '—'}</div></div>
       <div class="detail-item"><label>آخر تحديث</label><div class="val">${formatDate(c.updatedAt)}</div></div>
     </div>
+    ${window.MK_DEF ? `<div style="margin-bottom:14px;"><button class="btn btn-outline btn-sm" onclick="closeModal('caseDetailModal');MK_DEF.open('${id}')">🛡️ دفوع هذه القضية</button></div>` : ''}
     ${c.notes ? `<div style="margin-bottom:16px;"><label style="font-size:12px;color:var(--text-muted);">ملاحظات</label><p style="margin-top:4px;">${esc(c.notes)}</p></div>` : ''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <h4 style="font-size:15px;">سجل الجلسات (${sessInfo.all.length})</h4>
@@ -5214,48 +5117,22 @@ function generateLawsuit() {
   const actions = document.getElementById('lawsuitActions');
   result.classList.add('show');
   actions.style.display = 'none';
-  result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري البحث العميق داخل مواد المكتبة وإعداد المسودة...</div>';
+  result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري إعداد مسودة الصحيفة...</div>';
 
-  setTimeout(async () => {
-    const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q + ' ' + details, { limit: 6 }) : [];
-    let draft = (window.MK_SMART && MK_SMART.buildLawsuitDraft)
-      ? MK_SMART.buildLawsuitDraft(q, details, hits)
-      : lawsuitText(q, details);
-    // تحسين خارجي اختياري
-    if (window.MK_AI && MK_AI.isExternalReady()) {
-      try {
-        result.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">🤖 جاري تحسين المسودة عبر Gemini مع المراجع المحلية...</div>';
-        const enhanced = await MK_AI.enhanceLawsuit(q, details, draft, hits);
-        if (enhanced && enhanced.length > 80) draft = enhanced;
-      } catch (e) {
-        console.warn('Gemini lawsuit enhance failed', e);
-      }
-    }
-    window.__curLawsuit = { q, details, hits, draft };
-    // عرض المسودة + بطاقات المصادر
-    let html = '<pre style="white-space:pre-wrap;font-family:Tahoma,Arial;line-height:1.85;margin:0;font-size:14px;">' +
-      (draft || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
-    if (hits && hits.length) {
-      html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);"><div style="font-weight:700;margin-bottom:8px;color:var(--accent);">📚 مصادر من المكتبة (بحث عميق مادة بمادة)</div>';
-      hits.forEach((h, i) => {
-        const artBadge = h.article ? '<span class="badge badge-green" style="margin-left:6px;">' + String(h.article).replace(/</g,'&lt;') + '</span> ' : '';
-        html += `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${(h.id || '').replace(/'/g, "\'")}')">
-          <strong>${i + 1}. ${artBadge}${(h.title || '').replace(/</g, '&lt;')}</strong>
-          <div style="font-size:12px;color:var(--text-muted);">${(h.category || '').replace(/</g, '&lt;')} · تطابق ${h.score || 0}${h.article ? ' · من داخل المادة' : ''}</div>
-          ${h.snip ? '<div style="font-size:12px;margin-top:4px;opacity:0.9;">' + (h.snip || '').replace(/</g, '&lt;') + '</div>' : ''}
-        </div>`;
-      });
-      html += '</div>';
-    }
-    result.innerHTML = html;
+  setTimeout(() => {
+    window.__curLawsuit = { q, details };
+    result.textContent = lawsuitText(q, details) + `
+
+────────────────────────────────────────
+⚠️ مسودة تجريبية — في النسخة الكاملة يتم التوليد عبر Gemini
+مع إمكانية تخصيص الأسماء والتواريخ والطلبات تلقائيًا.
+الخانات {{...}} تُملأ من القضية أو الموكل عند الفتح في المحرر.`;
     actions.style.display = 'flex';
-  }, 280);
+  }, 1100);
 }
 
-// نص المسودة الخام (بدون أي HTML) — يُعرض في المعاينة ويُفتح في المحرر (احتياطي)
+// نص المسودة الخام (بدون أي HTML) — يُعرض في المعاينة ويُفتح في المحرر
 function lawsuitText(q, details) {
-  const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q + ' ' + (details || ''), { limit: 5 }) : [];
-  if (window.MK_SMART && MK_SMART.buildLawsuitDraft) return MK_SMART.buildLawsuitDraft(q, details, hits);
   return `════════════════════════════════════════
         مسودة صحيفة دعوى
 ════════════════════════════════════════
@@ -5274,7 +5151,7 @@ function lawsuitText(q, details) {
 الموضوع: ${q}
 
 الوقائع:
-${details ? details + '\\n' : ''}1- بموجب ........................ المؤرخ ../../.... 
+${details ? details + '\n' : ''}1- بموجب ........................ المؤرخ ../../.... 
 2- ........................................................
 3- وإذ امتنع المدعى عليه عن ........................ 
 4- الأمر الذي حدا بالمدعي إلى رفع هذه الدعوى.
@@ -5297,8 +5174,7 @@ ${details ? details + '\\n' : ''}1- بموجب ........................ المؤ
 }
 function openLawsuitInEditor() {
   const c = window.__curLawsuit; if (!c) return alert('أنشئ الصحيفة أولًا.');
-  const text = c.draft || lawsuitText(c.q, c.details);
-  DQ_EDITOR.ui.open({ kind: 'lawsuit', title: 'صحيفة دعوى: ' + c.q, text: text, tpl: 'lawsuit' });
+  DQ_EDITOR.ui.open({ kind: 'lawsuit', title: 'صحيفة دعوى: ' + c.q, text: lawsuitText(c.q, c.details), tpl: 'lawsuit' });
 }
 
 function copyLawsuit() {
@@ -5443,668 +5319,6 @@ function quickLib(q) {
   searchLibrary();
 }
 
-
-// ===================== MK_SMART — مساعد ذكي محلي (بدون سيرفرات) =====================
-// يعتمد على فهرس المكتبة + بيانات القضايا فقط. يعمل أوفلاين بالكامل.
-window.MK_SMART = (function () {
-  const TYPE_KEYWORDS = {
-    'مدني': ['مدني', 'عقد', 'التزام', 'تعويض', 'فسخ', 'بطلان', 'ملكية', 'حيازة', 'تقادم', 'فوائد', 'مرافعات'],
-    'جنائي': ['عقوبات', 'جنائي', 'جريمة', 'جنحة', 'جناية', 'تحقيق', 'نيابة', 'حبس', 'غرامة', 'إجراءات جنائية'],
-    'أسرة': ['أحوال شخصية', 'نفقة', 'خلع', 'طلاق', 'حضانة', 'رؤية', 'متعة', 'عدة', 'زواج', 'أسرة'],
-    'تجاري': ['تجاري', 'شركات', 'إفلاس', 'شيك', 'أوراق تجارية', 'سجل تجاري', 'عقد توريد'],
-    'إداري': ['إداري', 'مجلس الدولة', 'قرار إداري', 'إلغاء', 'تعويض إداري', 'موظف'],
-    'عمالي': ['عمل', 'عمال', 'فصل', 'أجور', 'تأمينات', 'عقد عمل', 'مكافأة']
-  };
-
-  const SYNONYMS = {
-    'نفقة': ['نفقة', 'النفقة', 'نفقة زوجية', 'نفقة صغار', 'نفقة عدة', 'متعة'],
-    'خلع': ['خلع', 'المخالعة', 'طلب خلع'],
-    'طلاق': ['طلاق', 'تطليق', 'فرقة', 'بينونة'],
-    'إيجار': ['إيجار', 'الإيجار', 'مؤجر', 'مستأجر', 'عين مؤجرة', 'أجرة'],
-    'فسخ': ['فسخ', 'انفساخ', 'إبطال', 'بطلان'],
-    'تعويض': ['تعويض', 'ضرر', 'أضرار', 'مسؤولية', 'خطأ'],
-    'صحة ونفاذ': ['صحة ونفاذ', 'نفاذ', 'تسجيل', 'شهر عقاري', 'عقد بيع'],
-    'طرد': ['طرد', 'إخلاء', 'غصب', 'استرداد حيازة', 'رفع يد'],
-    'تقادم': ['تقادم', 'سقوط بالتقادم', 'مدة التقادم', 'قطع التقادم'],
-    'استئناف': ['استئناف', 'طعن بالاستئناف', 'ميعاد الاستئناف'],
-    'نقض': ['نقض', 'طعن بالنقض', 'محكمة النقض'],
-    'مرافعات': ['مرافعات', 'إجراءات', 'إعلان', 'صحيفة', 'اختصاص'],
-    'محاماة': ['محاماة', 'أتعاب', 'توكيل', 'محامي'],
-    'شيك': ['شيك', 'شيك بدون رصيد', 'ورقة تجارية'],
-    'عقد': ['عقد', 'اتفاق', 'تعاقد', 'التزامات العقد']
-  };
-
-  // أرقام عربية-هندية → لاتينية
-  const AR_DIGITS = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
-
-  function normalize(s) {
-    return (s || '').toString().trim().toLowerCase()
-      .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
-      .replace(/[ًٌٍَُِّْ]/g, '')
-      .replace(/[٠-٩]/g, d => AR_DIGITS[d] || d)
-      .replace(/[^\u0600-\u06FFa-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ').trim();
-  }
-
-  function expandQuery(q) {
-    const nq = normalize(q);
-    const tokens = new Set(nq.split(/\s+/).filter(t => t.length >= 2));
-    Object.keys(SYNONYMS).forEach(key => {
-      const nk = normalize(key);
-      if (nq.includes(nk) || tokens.has(nk)) {
-        SYNONYMS[key].forEach(syn => tokens.add(normalize(syn)));
-      }
-    });
-    Object.keys(TYPE_KEYWORDS).forEach(t => {
-      if (nq.includes(normalize(t))) {
-        TYPE_KEYWORDS[t].forEach(k => tokens.add(normalize(k)));
-      }
-    });
-    return { normalized: nq, tokens: [...tokens] };
-  }
-
-  /** تقسيم نص قانون إلى مواد (بحث عميق مادة بمادة) */
-  function splitArticles(rawText) {
-    if (!rawText || rawText.length < 40) return [];
-    const re = /(?:^|[\n\r])\s*((?:مادة|المادة)\s*[\(\[]?\s*([0-9٠-٩]+)\s*[\)\]]?[^\n\r]{0,80})/g;
-    const marks = [];
-    let m;
-    while ((m = re.exec(rawText)) !== null) {
-      const numRaw = (m[2] || '').replace(/[٠-٩]/g, d => AR_DIGITS[d] || d);
-      marks.push({
-        index: m.index + (m[0].startsWith('\n') || m[0].startsWith('\r') ? 1 : 0),
-        label: (m[1] || '').replace(/\s+/g, ' ').trim().slice(0, 60),
-        num: numRaw
-      });
-    }
-    if (!marks.length) return [];
-    const arts = [];
-    for (let i = 0; i < marks.length; i++) {
-      const start = marks[i].index;
-      const end = i + 1 < marks.length ? marks[i + 1].index : Math.min(rawText.length, start + 2500);
-      let body = rawText.slice(start, end).replace(/\s+/g, ' ').trim();
-      if (body.length > 1200) body = body.slice(0, 1200) + '…';
-      arts.push({
-        num: marks[i].num,
-        label: marks[i].label || ('مادة ' + marks[i].num),
-        text: body
-      });
-    }
-    return arts;
-  }
-
-  function scoreText(ntitle, ntext, expanded) {
-    const nq = expanded.normalized;
-    const tokens = expanded.tokens;
-    let score = 0;
-    if (ntitle && ntitle.includes(nq)) score += 120;
-    if (nq.length >= 4 && ntext.includes(nq)) score += 70;
-    tokens.forEach(t => {
-      if (t.length < 2) return;
-      if (ntitle && ntitle.includes(t)) score += 28;
-      if (ntext.includes(t)) {
-        score += 8;
-        const pos = ntext.indexOf(t);
-        if (pos >= 0 && pos < 400) score += 4;
-      }
-    });
-    return score;
-  }
-
-  function makeSnippet(rawText, tokens, nq) {
-    if (!rawText) return '';
-    const nraw = normalize(rawText);
-    let pos = -1;
-    const prefer = (nq && nq.length >= 3) ? nq : (tokens[0] || '');
-    if (prefer) pos = nraw.indexOf(prefer);
-    if (pos < 0) {
-      for (const t of tokens) {
-        pos = nraw.indexOf(t);
-        if (pos >= 0) break;
-      }
-    }
-    if (pos < 0) {
-      const s = rawText.slice(0, 160).replace(/\s+/g, ' ').trim();
-      return s + (rawText.length > 160 ? '…' : '');
-    }
-    const start = Math.max(0, pos - 40);
-    let snip = rawText.slice(start, start + 200).replace(/\s+/g, ' ').trim();
-    if (start > 0) snip = '…' + snip;
-    if (start + 200 < rawText.length) snip += '…';
-    return snip;
-  }
-
-  /**
-   * استرجاع عميق: يبحث داخل المواد وليس العناوين فقط.
-   * يعيد نتائج على مستوى المادة عند الإمكان.
-   */
-  function retrieve(query, opts) {
-    opts = opts || {};
-    const limit = opts.limit || 12;
-    const catBoost = opts.categoryBoost || '';
-    const catFilter = opts.categoryFilter || '';
-    const deep = opts.deep !== false; // افتراضي: بحث عميق
-    const expanded = expandQuery(query);
-    const idx = (typeof libSearchIndex === 'function' ? libSearchIndex() : (window.MK_LIBRARY_SEARCH || []));
-    const catalog = (typeof libCatalog === 'function' ? libCatalog() : (window.MK_LIBRARY_CATALOG || []));
-    const source = idx.length ? idx : catalog.map(c => ({ id: c.id, title: c.title, category: c.category, file: c.file, text: '' }));
-
-    // مرحلة 1: ترتيب سريع على مستوى الملف
-    const docScores = [];
-    for (const doc of source) {
-      if (catFilter && doc.category !== catFilter) continue;
-      const nt = normalize(doc.title || '');
-      const ntext = normalize((doc.text || '').slice(0, 120000));
-      let score = scoreText(nt, ntext, expanded);
-      if (catBoost && doc.category && normalize(doc.category).includes(normalize(catBoost))) score += 30;
-      if (doc.category) {
-        const nc = normalize(doc.category);
-        expanded.tokens.forEach(t => { if (nc.includes(t)) score += 6; });
-      }
-      if (score > 0) docScores.push({ doc, score });
-    }
-    docScores.sort((a, b) => b.score - a.score);
-
-    if (!deep) {
-      return docScores.slice(0, limit).map(({ doc, score }) => ({
-        id: doc.id,
-        title: doc.title,
-        category: doc.category,
-        file: doc.file,
-        score,
-        article: null,
-        snip: makeSnippet(doc.text || '', expanded.tokens, expanded.normalized)
-      }));
-    }
-
-    // مرحلة 2: تعميق أفضل الملفات — تقسيم لمواد وتقييم كل مادة
-    const topDocs = docScores.slice(0, Math.min(40, docScores.length));
-    const articleHits = [];
-    const fileFallback = [];
-
-    for (const { doc, score: docScore } of topDocs) {
-      const arts = splitArticles(doc.text || '');
-      if (!arts.length) {
-        fileFallback.push({
-          id: doc.id,
-          title: doc.title,
-          category: doc.category,
-          file: doc.file,
-          score: docScore,
-          article: null,
-          snip: makeSnippet(doc.text || '', expanded.tokens, expanded.normalized)
-        });
-        continue;
-      }
-      let bestArtScore = 0;
-      for (const art of arts) {
-        const nArt = normalize(art.text);
-        const nLabel = normalize(art.label || '');
-        let aScore = scoreText(nLabel, nArt, expanded);
-        // مكافأة إذا ذكر المستخدم رقم مادة
-        if (expanded.normalized.match(/(?:ماد[ةه]|المادة)\s*\d+/) || expanded.tokens.some(t => /^\d{1,4}$/.test(t))) {
-          const want = expanded.tokens.find(t => /^\d{1,4}$/.test(t));
-          if (want && art.num === want) aScore += 100;
-        }
-        if (aScore > 0) {
-          bestArtScore = Math.max(bestArtScore, aScore);
-          articleHits.push({
-            id: doc.id,
-            title: doc.title,
-            category: doc.category,
-            file: doc.file,
-            score: aScore + Math.min(25, Math.floor(docScore / 10)),
-            article: art.num ? ('مادة ' + art.num) : art.label,
-            articleNum: art.num,
-            snip: makeSnippet(art.text, expanded.tokens, expanded.normalized) || art.text.slice(0, 180)
-          });
-        }
-      }
-      // إن لم تطابق أي مادة لكن الملف له درجة: أبقِ الملف
-      if (bestArtScore === 0 && docScore > 0) {
-        fileFallback.push({
-          id: doc.id,
-          title: doc.title,
-          category: doc.category,
-          file: doc.file,
-          score: docScore,
-          article: null,
-          snip: makeSnippet(doc.text || '', expanded.tokens, expanded.normalized)
-        });
-      }
-    }
-
-    const merged = articleHits.concat(fileFallback);
-    // إزالة تكرار نفس المادة+الملف
-    const seen = new Set();
-    const unique = [];
-    merged.sort((a, b) => b.score - a.score);
-    for (const h of merged) {
-      const key = h.id + '|' + (h.articleNum || h.article || '');
-      if (seen.has(key)) continue;
-      seen.add(key);
-      unique.push(h);
-      if (unique.length >= limit) break;
-    }
-    return unique;
-  }
-
-  function suggestForCase(c) {
-    if (!c) return [];
-    const parts = [
-      c.subject || '',
-      c.type || '',
-      c.stage || '',
-      c.notes || '',
-      (c.parties || []).map(p => (p.role || '') + ' ' + (p.name || '')).join(' ')
-    ];
-    const q = parts.join(' ').trim() || c.type || 'مدني';
-    const typeToCat = {
-      'أسرة': 'الأحوال الشخصية',
-      'مدني': 'مدني',
-      'جنائي': 'عقوبات',
-      'تجاري': 'تجاري',
-      'إداري': 'إداري',
-      'عمالي': 'عمل'
-    };
-    const boost = typeToCat[c.type] || c.type || '';
-    return retrieve(q, { limit: 8, categoryBoost: boost, deep: true });
-  }
-
-  function buildLegalBasis(hits) {
-    if (!hits || !hits.length) {
-      return '- المادة .... من القانون المدني / قانون المرافعات\n- ما استقرت عليه أحكام محكمة النقض في هذا الشأن';
-    }
-    return hits.slice(0, 6).map((h, i) => {
-      const art = h.article ? (h.article + ' — ') : '';
-      const ref = (h.title || h.category || 'نص قانوني').slice(0, 80);
-      const sn = h.snip ? '\n   «' + h.snip.slice(0, 140) + '»' : '';
-      return (i + 1) + '. ' + art + ref + sn;
-    }).join('\n');
-  }
-
-  function buildLawsuitDraft(q, details, hits) {
-    const basis = buildLegalBasis(hits);
-    const sourcesNote = (hits && hits.length)
-      ? '\n\n────────────────────────────────────────\n📌 سند مستخرج ببحث عميق (مادة بمادة) من المكتبة المحلية على جهازك:\n' +
-        hits.slice(0, 6).map((h, i) => '  ' + (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + (h.category ? ' (' + h.category + ')' : '')).join('\n') +
-        '\n(راجع النص الكامل من المكتبة قبل الاعتماد في إجراء فعلي)'
-      : '\n\n────────────────────────────────────────\n⚠️ لم يُعثر على مواد مطابقة قوية — أكمل السند يدويًا من المكتبة.';
-
-    return `════════════════════════════════════════
-        مسودة صحيفة دعوى
-        (بحث عميق محلي داخل مواد القوانين)
-════════════════════════════════════════
-
-السيد الأستاذ المستشار / رئيس {{المحكمة}} الموقر
-
-تحية طيبة وبعد،
-
-مقدمه لسيادتكم: {{اسم_الموكل}} (المدعي)
-ومحله المختار مكتب الأستاذ / {{اسم_المحامي}} المحامي
-الكائن في: {{عنوان_المكتب}}
-
-ضد: {{اسم_الخصم}} (المدعى عليه)
-وموطنه: ........................
-
-الموضوع: ${q}
-
-الوقائع:
-${details ? details + '\n' : ''}1- بموجب ........................ المؤرخ ../../.... 
-2- ........................................................
-3- وإذ امتنع المدعى عليه عن ........................ 
-4- الأمر الذي حدا بالمدعي إلى رفع هذه الدعوى مستندًا إلى صحيح القانون.
-
-السند القانوني (مواد مستخرجة من المكتبة):
-${basis}
-
-الطلبات:
-أولاً: قبول الدعوى شكلاً.
-ثانياً: ........................................................
-ثالثاً: إلزام المدعى عليه بالمصروفات ومقابل أتعاب المحاماة.
-
-ولسيادتكم وافر الاحترام والتقدير،
-
-الوكيل
-المحامي: {{اسم_المحامي}}
-التوقيع: ........................
-التاريخ: {{تاريخ_اليوم}}` + sourcesNote;
-  }
-
-  function unifiedSearch(query, opts) {
-    opts = opts || {};
-    const libHits = retrieve(query, { limit: opts.libLimit || 12, deep: true });
-    const nq = normalize(query);
-    const tokens = nq.split(/\s+/).filter(t => t.length >= 2);
-    const cases = (window.DB && DB.get) ? (DB.get('cases') || []) : [];
-    const caseHits = [];
-    for (const c of cases) {
-      const blob = normalize([c.number, c.subject, c.type, c.stage, c.court, c.notes, c.opponent,
-        (c.parties || []).map(p => p.name).join(' ')].join(' '));
-      let score = 0;
-      if (blob.includes(nq)) score += 50;
-      tokens.forEach(t => { if (blob.includes(t)) score += 10; });
-      if (score > 0) caseHits.push({ id: c.id, number: c.number, subject: c.subject, type: c.type, score });
-    }
-    caseHits.sort((a, b) => b.score - a.score);
-    return { library: libHits, cases: caseHits.slice(0, opts.caseLimit || 8) };
-  }
-
-  return {
-    normalize,
-    expandQuery,
-    splitArticles,
-    retrieve,
-    suggestForCase,
-    buildLawsuitDraft,
-    buildLegalBasis,
-    unifiedSearch,
-    TYPE_KEYWORDS,
-    SYNONYMS
-  };
-})();
-
-// ===================== MK_AI — هجين: محلي (MK_SMART) + خارجي (Gemini) =====================
-window.MK_AI = (function () {
-  const LS_KEY = 'mk_ai_settings_v1';
-
-  function loadSettings() {
-    try {
-      return JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {};
-    } catch (e) { return {}; }
-  }
-  function saveSettings(s) {
-    localStorage.setItem(LS_KEY, JSON.stringify(s || {}));
-  }
-  function getSettings() {
-    const s = loadSettings();
-    return {
-      key: (s.key || '').trim(),
-      model: s.model || 'gemini-flash-latest',
-      enabled: !!s.enabled
-    };
-  }
-  function isExternalReady() {
-    const s = getSettings();
-    return !!(s.enabled && s.key && navigator.onLine);
-  }
-  function statusText() {
-    const s = getSettings();
-    if (!s.enabled) return 'الوضع الحالي: محلي فقط (مكتبة + بيانات المكتب). فعّل Gemini من الإعدادات للبحث الخارجي.';
-    if (!s.key) return 'الوضع الحالي: محلي — لم يُحفظ مفتاح Gemini بعد.';
-    if (!navigator.onLine) return 'الوضع الحالي: محلي (لا يوجد اتصال بالإنترنت).';
-    return 'الوضع الحالي: هجين — محلي + Gemini (' + (s.model || '') + ') عند الحاجة.';
-  }
-
-  function collectOfficeContext(limit) {
-    limit = limit || 12;
-    if (!window.DB || !DB.get) return { summary: 'لا توجد قاعدة بيانات محلية.', cases: [], tasks: [], events: [] };
-    const cases = (DB.get('cases') || []).slice(0, 30);
-    const tasks = (DB.get('tasks') || []).filter(t => t.status !== 'منتهية').slice(0, 20);
-    const today = (typeof isoToday === 'function' ? isoToday() : new Date().toISOString().slice(0, 10));
-    const events = (DB.get('events') || []).filter(e => (e.date || '') >= today).slice(0, 20);
-    const sessions = (DB.get('sessions') || []).filter(s => (s.date || '') >= today).slice(0, 20);
-    const lines = [];
-    lines.push('تاريخ اليوم: ' + today);
-    lines.push('عدد القضايا: ' + (DB.get('cases') || []).length + ' | مهام مفتوحة: ' + tasks.length);
-    cases.slice(0, limit).forEach(c => {
-      lines.push('- قضية ' + (c.number || 'بدون رقم') + ' | ' + (c.subject || '') + ' | نوع:' + (c.type || '') + ' | حالة:' + (c.status || '') + ' | مرحلة:' + (c.stage || ''));
-    });
-    tasks.slice(0, 8).forEach(t => {
-      lines.push('- مهمة: ' + (t.title || '') + ' | استحقاق:' + (t.due || '') + ' | ' + (t.status || ''));
-    });
-    events.slice(0, 8).forEach(e => {
-      lines.push('- موعد: ' + (e.date || '') + ' ' + (e.time || '') + ' | ' + (e.desc || e.type || ''));
-    });
-    sessions.slice(0, 8).forEach(s => {
-      lines.push('- جلسة: ' + (s.date || '') + ' | قضية:' + (s.caseId || '') + ' | ' + (s.outcome || s.notes || ''));
-    });
-    return { summary: lines.join('\n'), cases, tasks, events, sessions, today };
-  }
-
-  async function callGemini(userPrompt, systemExtra) {
-    const s = getSettings();
-    if (!s.key) throw new Error('لا يوجد مفتاح Gemini');
-    const model = s.model || 'gemini-flash-latest';
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
-    const system = 'أنت مساعد قانوني لمكتب محاماة مصري داخل تطبيق «مكتبي الإلكتروني». أجب بالعربية الفصحى الواضحة. اعتمد أولاً على سياق المكتب والمكتبة المحلية المرفق. لا تختلق أرقام مواد غير موجودة في السياق؛ إن لم تجد، صرّح بذلك واقترح مراجعة المكتبة أو النص الرسمي. للبحث الخارجي استخدم معرفتك العامة بالقانون المصري مع التنبيه أنها للاستئناس وليست بديلاً عن النص الرسمي.'
-      + (systemExtra ? ('\n' + systemExtra) : '');
-    const body = {
-      contents: [{ role: 'user', parts: [{ text: system + '\n\n---\n\n' + userPrompt }] }],
-      generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
-    };
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': s.key
-      },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) {
-      const errTxt = await res.text().catch(() => '');
-      throw new Error('Gemini خطأ ' + res.status + ': ' + errTxt.slice(0, 220));
-    }
-    const data = await res.json();
-    const content = (((data || {}).candidates || [])[0] || {}).content;
-    const parts = (content && content.parts) || [];
-    const out = parts.map(p => p.text || '').join('\n').trim();
-    if (!out) throw new Error('رد فارغ من Gemini');
-    return out;
-  }
-
-  function localAnswer(query) {
-    const q = (query || '').trim();
-    const hits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q, { limit: 8, deep: true }) : [];
-    const ctx = collectOfficeContext(8);
-    const lines = [];
-    lines.push('【وضع محلي — بدون خادم خارجي】');
-    lines.push('');
-    // heuristics for organize
-    const nq = (window.MK_SMART && MK_SMART.normalize) ? MK_SMART.normalize(q) : q;
-    if (/نظم|يوم|اجند|أجند|مهام|اولوي|أولوي/.test(nq)) {
-      lines.push('ملخص تنظيمي من بيانات مكتبك:');
-      lines.push(ctx.summary);
-      lines.push('');
-      lines.push('اقتراحات محلية:');
-      lines.push('1) راجع «يوم المحكمة» للجلسات اليوم/غدًا وسجّل النتائج.');
-      lines.push('2) أغلق أو أجّل المهام المتأخرة من قسم المهام.');
-      lines.push('3) افتح القضايا ذات الجلسة الأقرب وحدّث المرحلة.');
-    } else {
-      lines.push('نتائج من المكتبة المحلية (بحث عميق في المواد):');
-      if (!hits.length) lines.push('لا نتائج قوية في المكتبة لهذا الاستعلام.');
-      hits.forEach((h, i) => {
-        lines.push((i + 1) + ') ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + (h.category ? ' [' + h.category + ']' : ''));
-        if (h.snip) lines.push('   ' + h.snip);
-      });
-      lines.push('');
-      lines.push('لتحليل أوسع أو صياغة أذكى: فعّل Gemini من الإعدادات.');
-    }
-    return { text: lines.join('\n'), hits: hits };
-  }
-
-  async function ask(query, opts) {
-    opts = opts || {};
-    const q = (query || '').trim();
-    if (!q) throw new Error('اكتب سؤالاً');
-    const local = localAnswer(q);
-    if (!isExternalReady() || opts.localOnly) {
-      return { mode: 'local', text: local.text, hits: local.hits };
-    }
-    const ctx = collectOfficeContext(15);
-    const libBlock = (local.hits || []).slice(0, 6).map((h, i) =>
-      (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + '\n' + (h.snip || '')
-    ).join('\n');
-    const prompt = 'سؤال المستخدم:\n' + q + '\n\nسياق المكتب المحلي:\n' + ctx.summary +
-      '\n\nمقتطفات من المكتبة القانونية المحلية (بحث عميق):\n' + (libBlock || 'لا نتائج') +
-      '\n\nالمطلوب: أجب بشكل عملي لتنظيم العمل أو التحليل القانوني. إن كان السؤال بحثًا قانونيًا فادمج المواد المحلية مع معرفتك العامة مع التنبيه للتحقق من النص الرسمي.';
-    try {
-      const external = await callGemini(prompt);
-      return {
-        mode: 'hybrid',
-        text: '【هجين: محلي + Gemini】\n\n' + external + '\n\n——\nمراجع محلية مُرّرت للنموذج:\n' + (libBlock || 'لا شيء'),
-        hits: local.hits
-      };
-    } catch (e) {
-      return {
-        mode: 'local-fallback',
-        text: local.text + '\n\n⚠️ تعذر الذكاء الخارجي: ' + (e.message || e) + '\nتم عرض النتيجة المحلية.',
-        hits: local.hits
-      };
-    }
-  }
-
-  async function enhanceLawsuit(q, details, localDraft, hits) {
-    if (!isExternalReady()) return null;
-    const libBlock = (hits || []).slice(0, 6).map((h, i) =>
-      (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + '\n' + (h.snip || '')
-    ).join('\n');
-    const prompt = 'حسّن مسودة صحيفة الدعوى التالية لمكتب محاماة مصري. أبقِ الخانات {{...}} كما هي. قوّي الوقائع والسند والطلبات دون اختلاق مواد غير مذكورة في المراجع.\n\nنوع/موضوع: ' + q +
-      '\nتفاصيل: ' + (details || '') +
-      '\n\nمراجع محلية:\n' + libBlock +
-      '\n\nالمسودة الحالية:\n' + localDraft;
-    return await callGemini(prompt);
-  }
-
-  return {
-    loadSettings, saveSettings, getSettings, isExternalReady, statusText,
-    collectOfficeContext, callGemini, localAnswer, ask, enhanceLawsuit
-  };
-})();
-
-function mkAiRefreshStatus() {
-  const el = document.getElementById('mkAiStatus');
-  if (el && window.MK_AI) el.textContent = MK_AI.statusText();
-  // load settings fields if present
-  const s = window.MK_AI ? MK_AI.getSettings() : {};
-  const k = document.getElementById('mkGeminiKey');
-  const m = document.getElementById('mkGeminiModel');
-  const e = document.getElementById('mkGeminiEnabled');
-  if (k && !k.dataset.loaded) { k.value = s.key || ''; k.dataset.loaded = '1'; }
-  if (m && s.model) m.value = s.model;
-  if (e) e.checked = !!s.enabled;
-}
-
-function mkAiSaveSettings() {
-  const key = (document.getElementById('mkGeminiKey') || {}).value || '';
-  const model = (document.getElementById('mkGeminiModel') || {}).value || 'gemini-2.0-flash';
-  const enabled = !!(document.getElementById('mkGeminiEnabled') || {}).checked;
-  MK_AI.saveSettings({ key: key.trim(), model, enabled });
-  const msg = document.getElementById('mkGeminiSaveMsg');
-  if (msg) msg.textContent = 'تم حفظ إعدادات الذكاء على هذا الجهاز.';
-  mkAiRefreshStatus();
-  if (typeof toast === 'function') toast('تم حفظ إعدادات الذكاء');
-}
-
-async function mkAiTestConnection() {
-  const msg = document.getElementById('mkGeminiSaveMsg');
-  try {
-    mkAiSaveSettings();
-    if (!MK_AI.isExternalReady()) {
-      if (msg) msg.textContent = 'فعّل الخيار وأدخل المفتاح وتأكد من الإنترنت.';
-      return;
-    }
-    if (msg) msg.textContent = 'جاري اختبار Gemini...';
-    const t = await MK_AI.callGemini('قل فقط: الاتصال ناجح.');
-    if (msg) msg.textContent = '✅ ' + (t || 'الاتصال ناجح').slice(0, 120);
-  } catch (e) {
-    if (msg) msg.textContent = '❌ فشل الاختبار: ' + (e.message || e);
-  }
-}
-
-function mkAiPreset(kind) {
-  const map = {
-    organize_today: 'نظم يوم عملي اليوم: الجلسات والمواعيد والمهام المتأخرة وما يجب إنجازه قبل الغد.',
-    week_cases: 'لخّص قضايا المكتب النشطة وأبرز ما يحتاج متابعة هذا الأسبوع.',
-    tasks_priority: 'رتّب المهام المفتوحة حسب الأولوية القانونية والمواعيد.',
-    library_help: 'ما أهم المواد القانونية المتعلقة بدعوى النفقة الزوجية من المكتبة والسياق المصري؟',
-    conflict_hint: 'كيف أستخدم فحص التعارض قبل قبول موكل جديد؟ وما الحقول التي يجب البحث فيها؟'
-  };
-  const el = document.getElementById('mkAiQuery');
-  if (el) el.value = map[kind] || kind;
-  mkAiAsk();
-}
-
-
-
-async function mkLibraryExternalExpand() {
-  const q = ((document.getElementById('libraryQuery') || {}).value || '').trim();
-  if (!q) return alert('اكتب كلمة البحث أولاً');
-  // أولاً بحث محلي عميق
-  searchLibrary();
-  const result = document.getElementById('libraryResult');
-  if (!window.MK_AI || !MK_AI.isExternalReady()) {
-    if (result) {
-      const note = document.createElement('div');
-      note.style.cssText = 'margin:10px 0;padding:10px;border-radius:8px;background:var(--bg);font-size:13px;';
-      note.textContent = 'البحث الموسّع الخارجي يتطلب تفعيل Gemini من الإعدادات + اتصال إنترنت. تم تنفيذ البحث المحلي العميق.';
-      result.prepend(note);
-    }
-    return;
-  }
-  const boxId = 'mkLibExtBox';
-  let box = document.getElementById(boxId);
-  if (!box && result) {
-    box = document.createElement('div');
-    box.id = boxId;
-    box.style.cssText = 'margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:10px;';
-    result.prepend(box);
-  }
-  if (box) box.innerHTML = '<div style="color:var(--text-muted);">🤖 جاري البحث الموسّع عبر Gemini مع نتائج المكتبة المحلية...</div>';
-  try {
-    const localHits = (window.MK_SMART && MK_SMART.retrieve) ? MK_SMART.retrieve(q, { limit: 8, deep: true }) : [];
-    const libBlock = localHits.map((h, i) => (i + 1) + '. ' + (h.article ? h.article + ' — ' : '') + (h.title || '') + '\n' + (h.snip || '')).join('\n');
-    const prompt = 'أنت باحث قانوني مصري. استعلام المستخدم: «' + q + '»\n\nنتائج المكتبة المحلية داخل التطبيق:\n' + (libBlock || 'لا نتائج') +
-      '\n\nقدّم: 1) تلخيصًا موجزًا لما وجدته محليًا 2) مواد/مبادئ إضافية من معرفتك بالقانون المصري مع التنبيه أنها للاستئناس 3) خطوات عملية للمحامي. بالعربية.';
-    const ans = await MK_AI.callGemini(prompt);
-    if (box) {
-      box.innerHTML = '<div style="font-weight:700;color:var(--accent);margin-bottom:8px;">🌐 تحليل موسّع (Gemini + المكتبة المحلية)</div><div style="white-space:pre-wrap;line-height:1.8;font-size:14px;"></div>';
-      box.querySelector('div:last-child').textContent = ans;
-    }
-  } catch (e) {
-    if (box) box.textContent = 'فشل البحث الخارجي: ' + (e.message || e);
-  }
-}
-
-
-async function mkAiAsk() {
-  const q = ((document.getElementById('mkAiQuery') || {}).value || '').trim();
-  const result = document.getElementById('mkAiResult');
-  const hitsBox = document.getElementById('mkAiLocalHits');
-  if (!q) return alert('اكتب سؤالاً');
-  if (result) result.textContent = 'جاري التحليل (محلي' + (MK_AI.isExternalReady() ? ' + خارجي' : '') + ')...';
-  if (hitsBox) hitsBox.innerHTML = '';
-  try {
-    const r = await MK_AI.ask(q);
-    if (result) result.textContent = r.text || '';
-    if (hitsBox && r.hits && r.hits.length) {
-      hitsBox.innerHTML = '<div style="font-weight:700;margin-bottom:8px;color:var(--accent);">📚 مراجع من المكتبة المحلية</div>' +
-        r.hits.map((h, i) => `<div class="note-item" style="cursor:pointer;margin-bottom:6px;" onclick="openLibraryLaw('${String(h.id||'').replace(/'/g,"\\'")}')">
-          <strong>${i + 1}. ${h.article ? '<span class="badge badge-green">' + String(h.article).replace(/</g,'&lt;') + '</span> ' : ''}${String(h.title||'').replace(/</g,'&lt;')}</strong>
-          <div style="font-size:12px;color:var(--text-muted);">${String(h.category||'').replace(/</g,'&lt;')}</div>
-          ${h.snip ? '<div style="font-size:12px;margin-top:4px;">' + String(h.snip).replace(/</g,'&lt;') + '</div>' : ''}
-        </div>`).join('');
-    }
-  } catch (e) {
-    if (result) result.textContent = 'خطأ: ' + (e.message || e);
-  }
-}
-
-// ربط صفحة المساعد عند فتحها
-(function() {
-  const _sp = typeof showPage === 'function' ? showPage : null;
-  if (!_sp) return;
-  window.showPage = function(pageId) {
-    _sp.apply(this, arguments);
-    if (pageId === 'assistant' || pageId === 'settings') {
-      try { mkAiRefreshStatus(); } catch (e) {}
-    }
-  };
-})();
-
-
-
-
 function normalizeLibQuery(s) {
   return (s || '').toString().trim().toLowerCase()
     .replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي')
@@ -6128,48 +5342,46 @@ function searchLibrary() {
   if (result) {
     result.style.display = 'block';
     result.classList.add('show');
-    result.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">🔍 جاري البحث العميق داخل المواد...</div>';
+    result.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">🔍 جاري البحث في النصوص...</div>';
   }
 
   // yield to UI
   setTimeout(() => {
+    const nq = normalizeLibQuery(q);
+    const tokens = nq.split(/\s+/).filter(t => t.length >= 2);
+    const idx = libSearchIndex();
     const catFilter = (document.getElementById('libraryCategory') || {}).value || '';
-    let top = [];
-    if (window.MK_SMART && typeof MK_SMART.retrieve === 'function') {
-      top = MK_SMART.retrieve(q, { limit: 80, categoryFilter: catFilter || undefined });
-    } else {
-      const nq = normalizeLibQuery(q);
-      const tokens = nq.split(/\s+/).filter(t => t.length >= 2);
-      const idx = libSearchIndex();
-      const scored = [];
-      const source = idx.length ? idx : libCatalog().map(c => ({ id: c.id, title: c.title, category: c.category, file: c.file, text: '' }));
-      for (const doc of source) {
-        if (catFilter && doc.category !== catFilter) continue;
-        const nt = normalizeLibQuery(doc.title || '');
-        const ntext = normalizeLibQuery((doc.text || '').slice(0, 80000));
-        let score = 0;
-        if (nt.includes(nq)) score += 100;
-        tokens.forEach(t => {
-          if (nt.includes(t)) score += 25;
-          if (ntext.includes(t)) score += 5;
-        });
-        if (nq.length >= 4 && ntext.includes(nq)) score += 40;
-        if (score > 0) {
-          let snip = '';
-          const rawText = doc.text || '';
-          const pos = normalizeLibQuery(rawText).indexOf(tokens[0] || nq);
-          if (pos >= 0) {
-            const start = Math.max(0, pos - 40);
-            snip = rawText.slice(start, start + 160).replace(/\s+/g, ' ').trim();
-            if (start > 0) snip = '…' + snip;
-            if (start + 160 < rawText.length) snip += '…';
-          }
-          scored.push({ id: doc.id, title: doc.title, category: doc.category, file: doc.file, score, snip });
+
+    const scored = [];
+    const source = idx.length ? idx : libCatalog().map(c => ({ id: c.id, title: c.title, category: c.category, file: c.file, text: '' }));
+    for (const doc of source) {
+      if (catFilter && doc.category !== catFilter) continue;
+      const nt = normalizeLibQuery(doc.title || '');
+      const ntext = normalizeLibQuery((doc.text || '').slice(0, 80000));
+      let score = 0;
+      if (nt.includes(nq)) score += 100;
+      tokens.forEach(t => {
+        if (nt.includes(t)) score += 25;
+        if (ntext.includes(t)) score += 5;
+      });
+      // phrase bonus in body
+      if (nq.length >= 4 && ntext.includes(nq)) score += 40;
+      if (score > 0) {
+        // snippet
+        let snip = '';
+        const rawText = doc.text || '';
+        const pos = normalizeLibQuery(rawText).indexOf(tokens[0] || nq);
+        if (pos >= 0) {
+          const start = Math.max(0, pos - 40);
+          snip = rawText.slice(start, start + 160).replace(/\s+/g, ' ').trim();
+          if (start > 0) snip = '…' + snip;
+          if (start + 160 < rawText.length) snip += '…';
         }
+        scored.push({ id: doc.id, title: doc.title, category: doc.category, file: doc.file, score, snip });
       }
-      scored.sort((a,b) => b.score - a.score || a.title.localeCompare(b.title, 'ar'));
-      top = scored.slice(0, 80);
     }
+    scored.sort((a,b) => b.score - a.score || a.title.localeCompare(b.title, 'ar'));
+    const top = scored.slice(0, 80);
 
     if (browse) browse.innerHTML = '';
     const countEl = document.getElementById('libraryCount');
@@ -6179,15 +5391,11 @@ function searchLibrary() {
       result.innerHTML = `<div style="padding:16px;">لا نتائج لـ «${esc(q)}». جرّب كلمات أقل أو تصفّح التصنيفات.</div>`;
       return;
     }
-    const deepCount = top.filter(it => it.article).length;
-    result.innerHTML = `<div style="margin-bottom:10px;font-size:13px;color:var(--text-muted);">
-        نتائج البحث العميق عن «${esc(q)}» — ${top.length} نتيجة${deepCount ? ' · منها ' + deepCount + ' على مستوى المادة' : ''}
-        <span class="badge badge-blue" style="margin-right:6px;">🤖 بحث ذكي داخل المواد</span>
-      </div>` +
+    result.innerHTML = `<div style="margin-bottom:10px;font-size:13px;color:var(--text-muted);">نتائج البحث عن «${esc(q)}»</div>` +
       top.map(it => `
         <div class="note-item" style="cursor:pointer;margin-bottom:8px;" onclick="openLibraryLaw('${esc(it.id)}')">
-          <strong>${it.article ? '<span class="badge badge-green" style="margin-left:6px;">' + esc(it.article) + '</span>' : ''}${esc(it.title)}</strong>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${esc(it.category || '')} · درجة التطابق ${it.score || 0}${it.article ? ' · مطابقة داخل المادة' : ''}</div>
+          <strong>${esc(it.title)}</strong>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${esc(it.category)} · درجة التطابق ${it.score}</div>
           ${it.snip ? `<div style="font-size:12px;margin-top:6px;line-height:1.6;opacity:0.9;">${esc(it.snip)}</div>` : ''}
         </div>`).join('');
   }, 30);
@@ -7345,7 +6553,7 @@ function dqEnterApp(){
   if (typeof dqOriginalShowPage === 'function') dqOriginalShowPage('dashboard');
 }
 function dqLogout(){dqCurrentAccount=null;document.getElementById('dqCurrentUser').style.display='none';document.getElementById('dqLogoutBtn').style.display='none';dqInitAuth()}
-function dqHasPerm(module){if(!dqCurrentAccount)return false;if(dqCurrentAccount.role==='owner')return true;const p=dqCurrentAccount.permissions;if(!Array.isArray(p))return false;if(module==='bailiffs'&&p.includes('tasks')&&dqCurrentAccount.role!=='client')return true;return p.includes(module)}
+function dqHasPerm(module){if(module==='defenses')module='lawsuits';if(!dqCurrentAccount)return false;if(dqCurrentAccount.role==='owner')return true;const p=dqCurrentAccount.permissions;if(!Array.isArray(p))return false;if(module==='bailiffs'&&p.includes('tasks')&&dqCurrentAccount.role!=='client')return true;return p.includes(module)}
 function dqApplyReadOnlyPolicy(){
   // Hide account controls from non-management roles. Module permissions govern navigation;
   // local HTML cannot provide tamper-proof authorization against a device owner.
@@ -9092,6 +8300,8 @@ window.addEventListener('focus', function() {
 <script src="mk-config.js"></script>
 <script src="mk-details.js"></script>
 <script src="mk-editor.js"></script>
+<script src="mk-defenses.js"></script>
+<script src="mk-ai.js"></script>
 <script src="mk-cloud.js"></script>
 </body>
 </html>
