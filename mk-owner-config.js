@@ -11,8 +11,8 @@
   const THEME = [['--primary-brown', 'اللون الأساسي (الشريط الجانبي)'], ['--accent-gold', 'اللون الذهبي'], ['--bg-beige', 'لون الخلفية']];
   const ZERO = '00000000-0000-0000-0000-000000000000';
 
-  let cfg = { modules: [], flags: [], overrides: [] };
-  try { const c = JSON.parse(localStorage.getItem(LSKEY)); if (c && Array.isArray(c.modules)) cfg = c; } catch (e) { }
+  let cfg = { modules: [], flags: [], overrides: [], fields: [] };
+  try { const c = JSON.parse(localStorage.getItem(LSKEY)); if (c && Array.isArray(c.modules)) cfg = Object.assign({ fields: [] }, c); } catch (e) { }
 
   const $ = id => document.getElementById(id);
   // dqCurrentAccount معرّف بـ let في index.html فلا يظهر على window
@@ -128,11 +128,12 @@
     if (loading || !window.MK || !MK.rest || !acct() || !navigator.onLine) return false;
     loading = true;
     try {
-      const [m, f, o] = await Promise.all([
+      const [m, f, o, cf] = await Promise.all([
         MK.rest('/rest/v1/app_modules?select=*'),
         MK.rest('/rest/v1/feature_flags?select=*'),
-        MK.rest('/rest/v1/ui_overrides?select=*')]);
-      cfg = { modules: m || [], flags: f || [], overrides: o || [] };
+        MK.rest('/rest/v1/ui_overrides?select=*'),
+        MK.rest('/rest/v1/custom_fields?select=*').catch(() => cfg.fields || [])]);   // migration-07 اختياري
+      cfg = { modules: m || [], flags: f || [], overrides: o || [], fields: cf || [] };
       try { localStorage.setItem(LSKEY, JSON.stringify(cfg)); } catch (e) { }
       applyAll(); return true;
     } catch (e) { return false; }                                      // الجداول غير موجودة أو أوفلاين: نكمل بالنسخة المحلية
@@ -146,10 +147,72 @@
     return r;
   };
 
+
+  /* ================= الحقول المخصصة (migration-07) ================= */
+  const CF_ENT = { clients: { anchor: 'clientNotes', body: 'clientDetailBody', name: 'العملاء' }, cases: { anchor: 'caseNotes', body: 'caseDetailBody', name: 'القضايا' } };
+  function fieldDefs(entity) {
+    const off = myOffice(), rows = (cfg.fields || []).filter(f => f.entity === entity);
+    const keys = Array.from(new Set(rows.map(f => f.key)));
+    return keys.map(k => pick(rows, k, off)).filter(f => f && f.enabled !== false)
+      .sort((a, b) => (a.sort_order == null ? 1000 : a.sort_order) - (b.sort_order == null ? 1000 : b.sort_order));
+  }
+  const itemOf = (entity, id) => { try { return (id && DB.get(entity).find(x => x.id === id)) || {}; } catch (e) { return {}; } };
+  function cfRender(entity, id) {
+    const old = $('mkCf_' + entity); if (old) old.remove();
+    const defs = fieldDefs(entity), meta = CF_ENT[entity]; if (!defs.length || !meta) return;
+    const anchor = $(meta.anchor); if (!anchor || !anchor.closest('.form-group')) return;
+    const vals = itemOf(entity, id).custom || {};
+    const box = el('div'); box.id = 'mkCf_' + entity;
+    box.append(el('div', 'حقول إضافية', 'font-weight:700;margin:10px 0 6px;font-size:13px;opacity:.8'));
+    defs.forEach(d => {
+      const g = el('div'); g.className = 'form-group';
+      g.append(el('label', d.label + (d.required ? ' *' : '')));
+      let inp;
+      if (d.ftype === 'textarea') { inp = el('textarea'); }
+      else if (d.ftype === 'select') { inp = el('select'); inp.append(new Option('— اختر —', '')); (d.options || []).forEach(o => inp.append(new Option(String(o), String(o)))); }
+      else { inp = el('input'); inp.type = d.ftype === 'number' ? 'number' : d.ftype === 'date' ? 'date' : 'text'; }
+      inp.dataset.cfKey = d.key; inp.value = vals[d.key] == null ? '' : vals[d.key];
+      g.append(inp); box.append(g);
+    });
+    anchor.closest('.form-group').after(box);
+  }
+  function cfOk(entity) {
+    const box = $('mkCf_' + entity); if (!box) return true;
+    for (const d of fieldDefs(entity)) {
+      if (!d.required) continue;
+      const inp = box.querySelector('[data-cf-key="' + d.key + '"]');
+      if (inp && !String(inp.value).trim()) { alert('الحقل «' + d.label + '» مطلوب.'); inp.focus(); return false; }
+    }
+    return true;
+  }
+  function cfCollect(entity, id) {
+    const out = Object.assign({}, itemOf(entity, id).custom || {}), box = $('mkCf_' + entity);
+    if (box) box.querySelectorAll('[data-cf-key]').forEach(i => { const v = String(i.value).trim(); if (v) out[i.dataset.cfKey] = v; else delete out[i.dataset.cfKey]; });
+    return Object.keys(out).length ? out : undefined;
+  }
+  function cfShow(entity, id) {
+    const meta = CF_ENT[entity], body = meta && $(meta.body); if (!body) return;
+    const vals = itemOf(entity, id).custom || {}, defs = fieldDefs(entity).filter(d => vals[d.key] != null && vals[d.key] !== '');
+    const old = body.querySelector('.mk-cf-view'); if (old) old.remove();
+    if (!defs.length) return;
+    const box = el('div', null, 'margin:12px 0;padding:10px;border:1px solid var(--border,#ddd);border-radius:10px'); box.className = 'mk-cf-view';
+    box.append(el('div', 'حقول إضافية', 'font-weight:700;font-size:13px;margin-bottom:6px'));
+    defs.forEach(d => { const r = el('div', null, 'font-size:14px;padding:2px 0'); r.append(el('strong', d.label + ': '), document.createTextNode(String(vals[d.key]))); box.append(r); });
+    body.append(box);
+  }
+  function wrapFn(name, make) { try { const f = window[name]; if (typeof f === 'function') window[name] = make(f); } catch (e) { } }
+  wrapFn('openClientModal', f => function (id) { const r = f.apply(this, arguments); cfRender('clients', id); return r; });
+  wrapFn('openCaseModal', f => function (id) { const r = f.apply(this, arguments); cfRender('cases', id); return r; });
+  wrapFn('saveClient', f => function () { if (!cfOk('clients')) return; return f.apply(this, arguments); });
+  wrapFn('saveCase', f => function () { if (!cfOk('cases')) return; return f.apply(this, arguments); });
+  wrapFn('viewClient', f => function (id) { const r = f.apply(this, arguments); cfShow('clients', id); return r; });
+  wrapFn('viewCase', f => function (id) { const r = f.apply(this, arguments); cfShow('cases', id); return r; });
+  window.MK_CF = { collect: cfCollect, defs: fieldDefs };
+
   /* ================= لوحة المالك ================= */
   function el(tag, text, css) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (css) e.style.cssText = css; return e; }
   function btn(text, fn, cls) { const b = el('button', text); b.type = 'button'; b.className = 'btn btn-sm ' + (cls || 'btn-outline'); b.onclick = fn; return b; }
-  const friendly = e => (window.MK && MK.friendly ? MK.friendly(e) : String((e && e.message) || e)).replace('protected_module', 'هذا القسم أساسي ولا يمكن إيقافه.');
+  const friendly = e => (window.MK && MK.friendly ? MK.friendly(e) : String((e && e.message) || e)).replace('protected_module', 'هذا القسم أساسي ولا يمكن إيقافه.').replace('too_many_fields', 'الحد الأقصى 25 حقلًا لكل نموذج.');
   // نافذة تأكيد بكلمة المرور قبل أي إيقاف شامل لكل المكاتب
   function askPassword(msg) {
     return new Promise(resolve => {
@@ -176,14 +239,15 @@
       await fn(); await reloadOwner(); if (okMsg && typeof toast === 'function') toast(okMsg);
     } catch (e) { alert(friendly(e)); }
   }
-  let offices = [], audit = [], scope = '';
+  let offices = [], audit = [], scope = '', hasFields = true;
   async function reloadOwner() {
-    const [m, f, o, a, offs] = await Promise.all([
+    const [m, f, o, a, offs, cf] = await Promise.all([
       MK.rest('/rest/v1/app_modules?select=*'), MK.rest('/rest/v1/feature_flags?select=*'),
       MK.rest('/rest/v1/ui_overrides?select=*'),
       MK.rest('/rest/v1/config_audit?select=*&order=id.desc&limit=30'),
-      MK.rest('/rest/v1/offices?select=id,name&order=name')]);
-    cfg = { modules: m, flags: f, overrides: o }; audit = a; offices = offs;
+      MK.rest('/rest/v1/offices?select=id,name&order=name'),
+      MK.rest('/rest/v1/custom_fields?select=*').then(r => { hasFields = true; return r; }).catch(() => { hasFields = false; return []; })]);
+    cfg = { modules: m, flags: f, overrides: o, fields: cf }; audit = a; offices = offs;
     renderPanel();
   }
   const sc = () => scope || null;
@@ -264,14 +328,46 @@
     });
     card.append(d3);
 
+
+    /* --- الحقول المخصصة --- */
+    const d5 = document.createElement('details'); d5.append(el('summary', 'الحقول المخصصة (نماذج العملاء والقضايا)', 'font-weight:700;cursor:pointer;margin:6px 0'));
+    if (!hasFields) d5.append(el('p', '⚠️ نفّذ ملف supabase-migration-07-custom-fields.sql أولًا.', 'color:#b3261e;font-size:13px'));
+    else {
+      d5.append(el('p', 'تظهر الحقول في نموذج العميل/القضية وفي صفحة تفاصيله. حذف الحقل يخفيه فقط، والقيم المحفوظة تبقى في السجلات.', 'font-size:12px;opacity:.7;margin:0 0 8px;line-height:1.7'));
+      const ent = el('select'); ent.append(new Option('العملاء', 'clients'), new Option('القضايا', 'cases'));
+      const lab = el('input'); lab.type = 'text'; lab.placeholder = 'اسم الحقل'; lab.maxLength = 60;
+      const ty = el('select'); [['text', 'نص قصير'], ['textarea', 'نص طويل'], ['number', 'رقم'], ['date', 'تاريخ'], ['select', 'قائمة اختيار']].forEach(x => ty.append(new Option(x[1], x[0])));
+      const op = el('input'); op.type = 'text'; op.placeholder = 'خيارات القائمة مفصولة بفاصلة'; op.style.display = 'none';
+      ty.onchange = () => { op.style.display = ty.value === 'select' ? '' : 'none'; };
+      const rq = el('input'); rq.type = 'checkbox'; const rql = el('label', 'مطلوب'); rql.prepend(rq);
+      const add = el('div', null, 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px');
+      add.append(ent, lab, ty, op, rql, btn('إضافة حقل', () => {
+        const label = lab.value.trim(); if (!label) return alert('اكتب اسم الحقل.');
+        const options = ty.value === 'select' ? op.value.split(/[,،]/).map(x => x.trim()).filter(Boolean).slice(0, 30) : [];
+        if (ty.value === 'select' && options.length < 2) return alert('أدخل خيارين على الأقل.');
+        const key = 'f_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        run(() => MK.rpc('owner_cfg_save_field', { p_entity: ent.value, p_key: key, p_label: label, p_ftype: ty.value, p_options: options, p_required: rq.checked, p_sort: null, p_office: sc(), p_enabled: true }), 'تمت إضافة الحقل');
+      }, 'btn-primary'));
+      d5.append(add);
+      (cfg.fields || []).filter(f => (f.office_id || null) === sc()).forEach(f => {
+        const row = el('div', null, 'display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px;flex-wrap:wrap');
+        const en = el('input'); en.type = 'checkbox'; en.checked = f.enabled !== false; en.title = 'ظاهر';
+        en.onchange = () => run(() => MK.rpc('owner_cfg_save_field', { p_entity: f.entity, p_key: f.key, p_label: f.label, p_ftype: f.ftype, p_options: f.options || [], p_required: f.required, p_sort: f.sort_order, p_office: f.office_id || null, p_enabled: en.checked }), 'تم الحفظ');
+        row.append(en, el('strong', f.label), el('span', (CF_ENT[f.entity] || {}).name + ' · ' + f.ftype + (f.required ? ' · مطلوب' : ''), 'opacity:.65;font-size:12px'),
+          btn('حذف', () => { if (confirm('حذف تعريف هذا الحقل؟ القيم المحفوظة تبقى في السجلات.')) run(() => MK.rpc('owner_cfg_delete', { p_table: 'custom_fields', p_id: f.id }), 'تم الحذف'); }, 'btn-danger'));
+        d5.append(row);
+      });
+    }
+    card.append(d5);
+
     /* --- السجل --- */
     const d4 = document.createElement('details'); d4.append(el('summary', 'سجل التغييرات والتراجع', 'font-weight:700;cursor:pointer;margin:6px 0'));
     if (!audit.length) d4.append(el('p', 'لا توجد تغييرات بعد.', 'opacity:.7;font-size:13px'));
-    const TN = { app_modules: 'قسم', feature_flags: 'ميزة', ui_overrides: 'مظهر/نص' }, AN = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
+    const TN = { app_modules: 'قسم', feature_flags: 'ميزة', ui_overrides: 'مظهر/نص', custom_fields: 'حقل مخصص' }, AN = { INSERT: 'إضافة', UPDATE: 'تعديل', DELETE: 'حذف' };
     audit.forEach(a => {
       const r = a.new_row || a.old_row || {}, row = el('div', null, 'display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px;flex-wrap:wrap');
       row.append(el('span', new Date(a.at).toLocaleString('ar-EG'), 'opacity:.6;font-size:12px'),
-        el('span', (AN[a.action] || a.action) + ' ' + (TN[a.table_name] || a.table_name) + ': ' + (r.key || r.target || '')),
+        el('span', (AN[a.action] || a.action) + ' ' + (TN[a.table_name] || a.table_name) + ': ' + (r.label || r.key || r.target || '')),
         btn('تراجع', () => { if (confirm('التراجع عن هذا التغيير؟')) run(() => MK.rpc('owner_cfg_undo', { p_audit_id: a.id }), 'تم التراجع'); }));
       d4.append(row);
     });
@@ -307,7 +403,7 @@
     return r;
   };
 
-  window.MK_CFG = { get: () => cfg, flag: flagEnabled, moduleEnabled: modEnabled, reload: load, apply: applyAll };
+  window.MK_CFG = { fields: fieldDefs, get: () => cfg, flag: flagEnabled, moduleEnabled: modEnabled, reload: load, apply: applyAll };
   document.addEventListener('DOMContentLoaded', scanNav);
   scanNav();
 })();

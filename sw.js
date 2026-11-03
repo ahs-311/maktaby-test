@@ -1,5 +1,5 @@
 /* مكتبي الإلكتروني — Service Worker (يعمل أونلاين وأوفلاين) */
-const VERSION = "maktabi-v1.9.5-owner-config";
+const VERSION = "maktabi-v1.9.6-custom-fields";
 const CORE = [
   "./",
   "./index.html",
