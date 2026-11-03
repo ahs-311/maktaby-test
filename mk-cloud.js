@@ -900,7 +900,10 @@
         const act = el('div', null, 'display:flex;gap:6px;flex-wrap:wrap');
         act.append(obtn('تجديد', () => mkRenew(o.id), 'btn-primary'), obtn('الدفعات', () => mkPays(o.id)), obtn('تصحيح التواريخ', () => mkAdjust(o.id)),
           obtn(o.active ? 'إيقاف يدوي' : 'إلغاء الإيقاف', () => window.mkToggleOffice(o.id, !o.active)));
-        row.append(info, act); list.append(row);
+        info.style.flex = '1';
+        row.append(info, act);
+        if (window.MK_AV) row.insertBefore(window.MK_AV.badge(o.logo, o.name, 44), info);   // لوجو المكتب
+        row.firstElementChild.style.marginInlineEnd = '10px'; list.append(row);
       });
     } catch (e) { list.textContent = friendly(e); }
   }
@@ -952,12 +955,5 @@
   document.removeEventListener('DOMContentLoaded', origInit);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => window.dqInitAuth());
   else window.dqInitAuth();
-  // تحقق من كلمة مرور الحساب الحالي دون تغيير الجلسة (يُستعمل لتأكيد العمليات الحساسة)
-  async function verifyPassword(pw) {
-    if (!me) throw uerr('لا توجد جلسة.');
-    if (!navigator.onLine) throw netErr();
-    try { await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: me.username + DOMAIN, password: pw } }); return true; }
-    catch (e) { if (e.network) throw e; throw uerr('كلمة المرور غير صحيحة.'); }
-  }
-  window.MK = { verifyPassword, rest, rpc, friendly, callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
+  window.MK = { rest, rpc, friendly, callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
 })();
