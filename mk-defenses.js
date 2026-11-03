@@ -19,7 +19,8 @@
     عقوبات: { name: 'قانون العقوبات', re: /^ocopat_/ },
     اجراءات: { name: 'قانون الإجراءات الجنائية', re: /^egraat_/ },
     دولة: { name: 'قانون مجلس الدولة', re: /^majlisdawla$/ },
-    اسرة: { name: 'قانون إنشاء محاكم الأسرة', re: /^ahwalshksea_a3$/ }
+    اسرة: { name: 'قانون إنشاء محاكم الأسرة', re: /^ahwalshksea_a3$/ },
+    ايجار136: { name: 'القانون رقم 136 لسنة 1981 (إيجار الأماكن)', re: /^egar2$/ }
   };
 
   /* ================= أسئلة الوقائع السريعة ================= */
@@ -368,7 +369,7 @@
         for (const d of lib) {
           if (!sc.re.test(d.id)) continue;
           const c = chunks(d).find(c => c.no === String(b.art) && norm(c.text).indexOf(must) >= 0);
-          if (c) { const t = c.text.replace(/^\s*مادة\s*(?:\(\s*)?[٠-٩0-9]+\s*\)?\s*[:：-]?\s*/, ''); res.ok = true; res.text = t.length > 700 ? t.slice(0, 700) + ' …' : t; break; }
+          if (c) { let t = c.text.replace(/^\s*مادة\s*(?:\(\s*)?[٠-٩0-9]+\s*\)?\s*[:：-]?\s*/, ''); if (b.from) { const k = t.indexOf(b.from); if (k >= 0) t = t.slice(k); } if (b.to) { const k2 = t.indexOf(b.to); if (k2 > 0) t = t.slice(0, k2).trim(); } const lim = b.len || 700; res.ok = true; res.text = t.length > lim ? t.slice(0, lim) + ' …' : t; break; }
         }
       }
     } catch (e) { }

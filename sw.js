@@ -1,5 +1,5 @@
 /* مكتبي الإلكتروني — Service Worker (يعمل أونلاين وأوفلاين) */
-const VERSION = "maktabi-v1.9.1-defenses-ai";
+const VERSION = "maktabi-v1.9.4-notices";
 const CORE = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const CORE = [
   "./mk-editor.js",
   "./mk-defenses.js",
   "./mk-ai.js",
+  "./mk-toolkit.js",
   "./vendor/jszip.min.js",
   "./icon-192.png",
   "./icon-512.png",
@@ -17,7 +18,6 @@ const CORE = [
   "./apple-touch-icon.png",
   "./library/catalog.js",
   "./library/search-index.js"
-  "./mk-lawyer-assistant.js",
 ];
 
 self.addEventListener("install", (e) => {
