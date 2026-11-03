@@ -952,5 +952,12 @@
   document.removeEventListener('DOMContentLoaded', origInit);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => window.dqInitAuth());
   else window.dqInitAuth();
-  window.MK = { rest, rpc, friendly, callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
+  // تحقق من كلمة مرور الحساب الحالي دون تغيير الجلسة (يُستعمل لتأكيد العمليات الحساسة)
+  async function verifyPassword(pw) {
+    if (!me) throw uerr('لا توجد جلسة.');
+    if (!navigator.onLine) throw netErr();
+    try { await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: me.username + DOMAIN, password: pw } }); return true; }
+    catch (e) { if (e.network) throw e; throw uerr('كلمة المرور غير صحيحة.'); }
+  }
+  window.MK = { verifyPassword, rest, rpc, friendly, callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
 })();

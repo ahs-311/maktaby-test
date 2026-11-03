@@ -150,11 +150,32 @@
   function el(tag, text, css) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (css) e.style.cssText = css; return e; }
   function btn(text, fn, cls) { const b = el('button', text); b.type = 'button'; b.className = 'btn btn-sm ' + (cls || 'btn-outline'); b.onclick = fn; return b; }
   const friendly = e => (window.MK && MK.friendly ? MK.friendly(e) : String((e && e.message) || e)).replace('protected_module', 'هذا القسم أساسي ولا يمكن إيقافه.');
-  async function run(fn, okMsg) {
-    try { await fn(); await reloadOwner(); if (okMsg && typeof toast === 'function') toast(okMsg); }
-    catch (e) { alert(friendly(e)); }
+  // نافذة تأكيد بكلمة المرور قبل أي إيقاف شامل لكل المكاتب
+  function askPassword(msg) {
+    return new Promise(resolve => {
+      const ov = el('div', null, 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px');
+      const box = el('div', null, 'background:var(--card-bg,#fff);color:var(--text-dark,#222);border-radius:12px;padding:16px;max-width:360px;width:100%;direction:rtl');
+      const pw = el('input'); pw.type = 'password'; pw.autocomplete = 'current-password'; pw.style.cssText = 'width:100%;padding:8px;margin:10px 0;box-sizing:border-box';
+      const done = v => { ov.remove(); resolve(v); };
+      const go = btn('تأكيد', () => done(pw.value || null), 'btn-primary');
+      pw.onkeydown = e => { if (e.key === 'Enter') go.click(); if (e.key === 'Escape') done(null); };
+      const row = el('div', null, 'display:flex;gap:8px'); row.append(go, btn('إلغاء', () => done(null)));
+      box.append(el('strong', '🔒 تأكيد بكلمة المرور'), el('p', msg, 'font-size:13px;margin:6px 0 0;line-height:1.7'), pw, row);
+      ov.append(box); document.body.append(ov); pw.focus();
+    });
   }
-
+  async function confirmGlobal(what) {
+    if (sc()) return true;                                  // مكتب محدد: لا حاجة
+    const pw = await askPassword('هذا التغيير يؤثر على كل المكاتب: ' + what + '. أدخل كلمة مرور المالك للمتابعة.');
+    if (!pw) return false;
+    try { await MK.verifyPassword(pw); return true; } catch (e) { alert(friendly(e)); return false; }
+  }
+  async function run(fn, okMsg, guard) {
+    try {
+      if (guard && !(await confirmGlobal(guard))) { await reloadOwner(); return; }
+      await fn(); await reloadOwner(); if (okMsg && typeof toast === 'function') toast(okMsg);
+    } catch (e) { alert(friendly(e)); }
+  }
   let offices = [], audit = [], scope = '';
   async function reloadOwner() {
     const [m, f, o, a, offs] = await Promise.all([
@@ -194,7 +215,7 @@
       const lab = el('input'); lab.type = 'text'; lab.maxLength = 60; lab.placeholder = orig; lab.value = (r && r.label) || '';
       const so = el('input'); so.type = 'number'; so.min = 0; so.max = 9999; so.placeholder = 'ترتيب'; so.value = r && r.sort_order != null ? r.sort_order : '';
       const code = el('span', orig + (own ? '' : (r ? ' ↩ (موروث)' : '')), 'font-size:13px');
-      const save = btn('حفظ', () => run(() => MK.rpc('owner_cfg_save_module', { p_key: key, p_office: sc(), p_label: lab.value.trim() || null, p_enabled: en.checked, p_sort: so.value === '' ? null : parseInt(so.value, 10) }), 'تم الحفظ'), 'btn-primary');
+      const save = btn('حفظ', () => run(() => MK.rpc('owner_cfg_save_module', { p_key: key, p_office: sc(), p_label: lab.value.trim() || null, p_enabled: en.checked, p_sort: so.value === '' ? null : parseInt(so.value, 10) }), 'تم الحفظ', en.checked ? null : 'إيقاف قسم «' + orig + '»'), 'btn-primary');
       row.append(en, code, lab, so, own ? (() => { const w = el('span', null, 'display:flex;gap:4px'); w.append(save, btn('استرجاع', () => run(() => MK.rpc('owner_cfg_delete', { p_table: 'app_modules', p_id: own.id }), 'عاد للأصل'))); return w; })() : save);
       tbl.append(row);
     });
@@ -205,7 +226,7 @@
     FLAGS.forEach(([key, name]) => {
       const r = pick(cfg.flags, key, sc()), row = el('div', null, 'display:flex;gap:10px;align-items:center;padding:6px 0');
       const en = el('input'); en.type = 'checkbox'; en.checked = !r || r.enabled !== false;
-      en.onchange = () => run(() => MK.rpc('owner_cfg_save_flag', { p_key: key, p_office: sc(), p_enabled: en.checked }), 'تم الحفظ');
+      en.onchange = () => run(() => MK.rpc('owner_cfg_save_flag', { p_key: key, p_office: sc(), p_enabled: en.checked }), 'تم الحفظ', en.checked ? null : 'إيقاف ميزة «' + name + '»');
       row.append(en, el('span', name)); d2.append(row);
     });
     card.append(d2);
