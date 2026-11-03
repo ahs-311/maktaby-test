@@ -952,5 +952,5 @@
   document.removeEventListener('DOMContentLoaded', origInit);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => window.dqInitAuth());
   else window.dqInitAuth();
-  window.MK = { callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
+  window.MK = { rest, rpc, friendly, callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
 })();
