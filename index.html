@@ -2719,7 +2719,6 @@ function saveClient() {
     status: document.getElementById('clientStatus').value,
     address: document.getElementById('clientAddress').value.trim(),
     notes: document.getElementById('clientNotes').value.trim(),
-    custom: window.MK_CF ? MK_CF.collect('clients', id) : (list.find(c => c.id === id) || {}).custom,
     createdAt: id ? (list.find(c => c.id === id)?.createdAt || new Date().toISOString()) : new Date().toISOString()
   };
   list = id ? list.map(c => c.id === id ? data : c) : [data, ...list];
@@ -3099,7 +3098,6 @@ function saveCase() {
     parties,
     opponent: opponentsText({ parties }),
     notes: document.getElementById('caseNotes').value.trim(),
-    custom: window.MK_CF ? MK_CF.collect('cases', id) : (list.find(c => c.id === id) || {}).custom,
     updatedAt: new Date().toISOString(),
     createdAt: id ? (list.find(c => c.id === id)?.createdAt || new Date().toISOString()) : new Date().toISOString()
   };
@@ -8306,6 +8304,5 @@ window.addEventListener('focus', function() {
 <script src="mk-ai.js"></script>
 <script src="mk-toolkit.js"></script>
 <script src="mk-cloud.js"></script>
-<script src="mk-owner-config.js"></script>
 </body>
 </html>
