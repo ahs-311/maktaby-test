@@ -89,7 +89,7 @@
       bad_role: 'دور غير صالح.', client_required: 'اربط حساب الموكل بسجل العميل.', bad_username: 'اسم الدخول غير صالح.',
       invalid_target: 'تعذر ربط الحساب الجديد. أعد المحاولة.', profile_exists: 'الحساب موجود بالفعل.',
       username_mismatch: 'اسم الدخول لا يطابق الحساب.', office_readonly: 'المكتب في وضع العرض فقط. جدّد الاشتراك أولًا.',
-      bad_duration: 'حدّد مدة أو تاريخًا صحيحًا.' };
+      bad_duration: 'حدّد مدة أو تاريخًا صحيحًا.', policy_required: 'يجب الموافقة على الشروط وسياسة الخصوصية.' };
     for (const k in map) if (m.includes(k)) return map[k];
     return m;
   }
@@ -368,6 +368,7 @@
         F('dqAuthUsername', 'اسم الدخول (إنجليزي: حروف وأرقام)', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="مثال: ahmed.law"') +
         F('dqAuthPassword', 'كلمة المرور (8 أحرف على الأقل)', 'type="password" required autocomplete="new-password"') +
         F('dqAuthPassword2', 'تأكيد كلمة المرور', 'type="password" required autocomplete="new-password"') +
+        (window.MK_LEGAL ? MK_LEGAL.consentHtml() : '') +
         link('login', 'لدي حساب بالفعل — تسجيل الدخول'), 'إنشاء المكتب');
       $('dqAuthForm').dataset.mode = 'mk-register';
     } else {
@@ -459,6 +460,8 @@
     if (pw.length < 8) throw uerr('كلمة المرور 8 أحرف على الأقل.');
     if (pw !== pw2) throw uerr('كلمتا المرور غير متطابقتين.');
     if (!navigator.onLine) throw uerr('إنشاء مكتب جديد يحتاج اتصالًا بالإنترنت.');
+    const consent = window.MK_LEGAL ? await MK_LEGAL.evidence() : null;
+    if (!consent) throw uerr('يجب الموافقة على الشروط والأحكام وسياسة الخصوصية لإنشاء المكتب.');
     const email = username + DOMAIN; let r;
     try { r = await api('/auth/v1/signup', { method: 'POST', body: { email, password: pw } }); }
     catch (e) {
@@ -472,8 +475,9 @@
     saveSession(r);
     const exist = await api('/rest/v1/profiles?user_id=eq.' + r.user.id + '&select=user_id', { token: r.access_token });
     if (exist.length) throw uerr('هذا الحساب موجود بالفعل. استخدم «تسجيل الدخول».');
-    await api('/rest/v1/rpc/create_office', { method: 'POST', token: r.access_token,
-      body: { p_office_name: office, p_full_name: name, p_username: username, p_permissions: DQ_MODULES.map(m => m[0]) } });
+    await api('/rest/v1/rpc/create_office_v2', { method: 'POST', token: r.access_token,
+      body: { p_office_name: office, p_full_name: name, p_username: username, p_permissions: DQ_MODULES.map(m => m[0]),
+        p_policy_version: consent.version, p_policy_hash: consent.hash, p_policy_text: consent.text, p_client_info: consent.info } });
     await finishLogin(r, username, pw);
   }
   async function finishLogin(r, username, password) {
@@ -848,16 +852,43 @@
   const toLocalInput = v => { if (!v) return ''; const d = new Date(v), p = x => String(x).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); };
   const STATE_AR = { trial: 'تجريبي', active: 'مدفوع', expiring: 'ينتهي قريبًا', readonly: 'عرض فقط', suspended: 'موقوف' };
 
+  /* ---------------- سند موافقة المكتب على الشروط (للمالك) ---------------- */
+  const hx = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function showEvidence(id) {
+    let r;
+    try { r = (await rest('/rest/v1/policy_acceptances?id=eq.' + id + '&select=*'))[0]; } catch (e) { return alert(friendly(e)); }
+    if (!r) return alert('لا يوجد السند.');
+    const rows = [['المكتب', r.office_name], ['اسم المدير', r.full_name], ['اسم الدخول', r.username], ['إصدار الشروط', r.doc_version],
+      ['تاريخ ووقت الموافقة (ساعة الخادم)', fmtDate(r.accepted_at) + ' — ' + r.accepted_at], ['عنوان IP', r.ip || '—'], ['المتصفح / الجهاز', r.user_agent || '—'],
+      ['بصمة النص SHA-256', r.doc_hash], ['طريقة الموافقة', 'تأشير خانة الإقرار عند إنشاء المكتب'], ['بيانات الجهاز', JSON.stringify(r.client_info || {})], ['معرّف السجل', r.id]];
+    const ov = el('div', null, 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100020;display:flex;align-items:center;justify-content:center;padding:14px');
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    const box = el('div', null, 'background:#fff;color:#2B2B2B;border-radius:14px;max-width:680px;width:100%;max-height:90vh;overflow:auto;padding:16px;direction:rtl');
+    box.append(el('h3', 'سند الموافقة الإلكترونية', 'margin:0 0 10px'));
+    rows.forEach(x => { const d = el('div', null, 'padding:6px 0;border-bottom:1px solid #eee;font-size:13px;word-break:break-all'); d.append(el('strong', x[0] + ': '), document.createTextNode(x[1] == null ? '—' : x[1])); box.append(d); });
+    const dl = obtn('⬇️ تنزيل السند (HTML)', () => {
+      const html = '<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>سند موافقة — ' + hx(r.office_name) + '</title><style>body{font-family:Tahoma,Arial;line-height:1.9;max-width:820px;margin:20px auto;padding:0 14px}td{border:1px solid #ccc;padding:6px 8px;vertical-align:top;word-break:break-all}table{border-collapse:collapse;width:100%}pre{white-space:pre-wrap;border:1px solid #ccc;padding:12px;background:#fafafa}</style></head><body>' +
+        '<h2>سند موافقة إلكترونية على الشروط والأحكام وسياسة الخصوصية — مكتبي الإلكتروني</h2><table>' + rows.map(x => '<tr><td><b>' + hx(x[0]) + '</b></td><td>' + hx(x[1]) + '</td></tr>').join('') + '</table>' +
+        '<h3>النص الذي وافق عليه المستخدم حرفيًا</h3><pre>' + hx(r.doc_text) + '</pre></body></html>';
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      a.download = 'consent-' + (r.username || r.id) + '.html'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, 'btn-primary');
+    box.append(el('h4', 'النص الذي وافق عليه', 'margin:14px 0 4px'), el('pre', r.doc_text, 'white-space:pre-wrap;font-family:inherit;font-size:12px;border:1px solid #ddd;border-radius:8px;padding:10px;max-height:240px;overflow:auto;background:#fafafa'));
+    const bar = el('div', null, 'display:flex;gap:8px;margin-top:12px'); bar.append(dl, obtn('إغلاق', () => ov.remove()));
+    box.append(bar); ov.append(box); document.body.append(ov);
+  }
+
   async function renderOwner() {
     const wrap = $('dqAccountFormWrap'), list = $('dqAccountsList'), log = $('dqActivityLog');
     if (!wrap || !list) return;
     if (log) log.textContent = '';
     wrap.textContent = ''; list.textContent = 'جارٍ التحميل…';
     try {
-      const [offs, profs, annList] = await Promise.all([
+      const [offs, profs, annList, accs] = await Promise.all([
         rest('/rest/v1/offices?select=*&order=created_at.desc'),
         rest('/rest/v1/profiles?select=office_id,full_name,username,role,active'),
-        rest('/rest/v1/announcements?select=*&order=created_at.desc&limit=50').catch(() => [])]);
+        rest('/rest/v1/announcements?select=*&order=created_at.desc&limit=50').catch(() => []),
+        rest('/rest/v1/policy_acceptances?select=id,office_id,doc_version,accepted_at,ip&order=accepted_at.desc').catch(() => null)]);   // null = لم يُنفَّذ migration-07
       ownerOffices = offs;
       // ---- نموذج التنبيه ----
       const box = el('div'); box.append(el('h3', '📣 إرسال تنبيه للمديرين', 'margin-bottom:6px'),
@@ -897,7 +928,14 @@
         const meta = el('div', 'المدير: ' + (mgr ? mgr.full_name + ' (' + mgr.username + ')' : '—') + ' · ' + mem.length + ' حساب · الحالة: ' +
           (o.active === false ? 'موقوف يدويًا' : STATE_AR[st]) + ' · ينتهي: ' + fmtDate(end) + (left >= 0 ? ' (باقي ' + left + ' يوم)' : ' (منتهٍ)'));
         meta.className = 'dq-user-meta'; info.append(meta);
+        const ac = accs && accs.find(x => x.office_id === o.id);
+        if (accs) {
+          const al = el('div', ac ? '✅ وافق على الشروط وسياسة الخصوصية (إصدار ' + ac.doc_version + ') — ' + fmtDate(ac.accepted_at) + (ac.ip ? ' · IP ' + ac.ip : '')
+            : 'لا يوجد سجل موافقة (مكتب أُنشئ قبل تفعيل الميزة)', 'font-size:12px;margin-top:3px;color:' + (ac ? '#15803d' : '#b45309'));
+          info.append(al);
+        }
         const act = el('div', null, 'display:flex;gap:6px;flex-wrap:wrap');
+        if (ac) act.append(obtn('سند الموافقة', () => showEvidence(ac.id)));
         act.append(obtn('تجديد', () => mkRenew(o.id), 'btn-primary'), obtn('الدفعات', () => mkPays(o.id)), obtn('تصحيح التواريخ', () => mkAdjust(o.id)),
           obtn(o.active ? 'إيقاف يدوي' : 'إلغاء الإيقاف', () => window.mkToggleOffice(o.id, !o.active)));
         info.style.flex = '1';
@@ -955,5 +993,5 @@
   document.removeEventListener('DOMContentLoaded', origInit);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => window.dqInitAuth());
   else window.dqInitAuth();
-  window.MK = { rest, rpc, friendly, callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
+  window.MK = { showEvidence, rest, rpc, friendly, callAdmin, canWrite, syncPerms, syncStatus, calcState, subState, fmtLeft, setStatus_: v => { status = v; }, setMe_: v => { me = v; }, renderSub, diffQueue, enqueue, applyRows, push, pull, syncAll, derive, saveOffline, offlineLogin };
 })();

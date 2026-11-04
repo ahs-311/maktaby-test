@@ -1205,12 +1205,6 @@ img,svg,video,canvas{max-width:100%}
         <button type="button" class="mk-bell-btn" id="mkBellBtn" onclick="mkToggleAlertPanel(event)" title="التنبيهات">🔔<span class="mk-bell-badge" id="mkBellBadge">0</span></button>
         <div id="mkAlertPanel" role="dialog" aria-label="التنبيهات">
           <h4>التنبيهات والتذكيرات</h4>
-          <div class="mk-alert-actions">
-            <button type="button" class="btn btn-primary btn-sm" onclick="mkTestNotification()">تجربة إشعار نظام</button>
-            <button type="button" class="btn btn-outline btn-sm" onclick="mkTestInAppReminder()">تذكير بعد 10 ثوانٍ</button>
-            <button type="button" class="btn btn-outline btn-sm" onclick="mkRunDailySummary(true)">ملخص اليوم</button>
-            <button type="button" class="btn btn-outline btn-sm" onclick="mkRequestNotifPermission()">إذن الإشعارات</button>
-          </div>
           <div id="mkAlertUpcoming"><p style="color:var(--text-muted);font-size:13px;">جاري التحميل...</p></div>
           <h4 style="margin-top:14px;">آخر التنبيهات داخل التطبيق</h4>
           <div id="mkAlertLog"></div>
@@ -8303,7 +8297,9 @@ window.addEventListener('focus', function() {
 <script src="mk-defenses.js"></script>
 <script src="mk-ai.js"></script>
 <script src="mk-toolkit.js"></script>
+<script src="mk-legal.js"></script>
 <script src="mk-cloud.js"></script>
 <script src="mk-avatars.js"></script>
+<script src="mk-notify.js"></script>
 </body>
 </html>

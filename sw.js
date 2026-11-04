@@ -1,5 +1,5 @@
 /* مكتبي الإلكتروني — Service Worker (يعمل أونلاين وأوفلاين) */
-const VERSION = "maktabi-v1.9.5-avatars";
+const VERSION = "maktabi-v1.9.6-legal-notify";
 const CORE = [
   "./",
   "./index.html",
@@ -7,6 +7,8 @@ const CORE = [
   "./mk-config.js",
   "./mk-cloud.js",
   "./mk-avatars.js",
+  "./mk-legal.js",
+  "./mk-notify.js",
   "./mk-details.js",
   "./mk-editor.js",
   "./mk-defenses.js",
