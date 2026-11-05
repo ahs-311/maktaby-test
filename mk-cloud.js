@@ -74,17 +74,20 @@
   }
   async function rest(path, opts = {}) { const t = await token(); return api(path, { ...opts, token: t }); }
   const rpc = (name, args) => rest('/rest/v1/rpc/' + name, { method: 'POST', body: args || {} });
+  window.MK_CLOUD = { base: BASE, anonKey: CFG.anonKey, token, rpc, officeId: () => officeId(), role: () => (me && me.role) || null, isRO: () => isRO() };
 
   function friendly(e) {
     if (e && e.user) return e.message;
     if (e && e.network) return 'تعذر الاتصال بالإنترنت.';
     const m = String((e && e.message) || e);
-    if (/email_provider_disabled|logins? (are|is) disabled/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'مزوّد Email معطّل في Supabase. فعّل «Enable Email provider» من Authentication ← Sign In / Providers ← Email ثم احفظ.';
-    if (/signups? (are|is) disabled|signup_disabled/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'التسجيل معطّل في Supabase. فعّل «Allow new users to sign up» وفعّل مزوّد Email من Authentication ← Sign In / Providers.';
-    if (/email not confirmed|email_not_confirmed/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'هذا الحساب غير مؤكد في Supabase. نفّذ في SQL Editor: update auth.users set email_confirmed_at = now() where email_confirmed_at is null;';
-    if (/invalid path specified/i.test(m)) return 'رابط Supabase في mk-config.js غير صحيح. يجب أن يكون هكذا فقط: https://xxxx.supabase.co';
+    if (/email_provider_disabled|logins? (are|is) disabled/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'مزوّد Email معطّل في الخادم. فعّل «Enable Email provider» من Authentication ← Sign In / Providers ← Email ثم احفظ.';
+    if (/signups? (are|is) disabled|signup_disabled/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'التسجيل معطّل في الخادم. فعّل «Allow new users to sign up» وفعّل مزوّد Email من Authentication ← Sign In / Providers.';
+    if (/email not confirmed|email_not_confirmed/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'هذا الحساب غير مؤكد في الخادم. نفّذ في SQL Editor: update auth.users set email_confirmed_at = now() where email_confirmed_at is null;';
+    if (/invalid path specified/i.test(m)) return 'رابط الخادم في mk-config.js غير صحيح. يجب أن يكون هكذا فقط: https://xxxx.…';
     if (/invalid api key|no api key/i.test(m)) return 'المفتاح في mk-config.js غير صحيح. استخدم المفتاح العام (anon / publishable).';
-    if (/PGRST205|schema cache|could not find the (table|function)|does not exist/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'قاعدة البيانات لم تُجهَّز بعد. نفّذ ملف supabase-schema.sql في Supabase أولًا.';
+    if (/PGRST205|schema cache|could not find the (table|function)|does not exist/i.test(m + ' ' + JSON.stringify((e && e.data) || ''))) return 'قاعدة البيانات لم تُجهَّز بعد. لم يكتمل تجهيز الخادم بعد. تواصل مع مسؤول النظام.';
+    if (/quota_db_full/.test(m)) return 'امتلأت مساحة بيانات القضايا في باقتك. احذف بيانات غير لازمة أو جدّد/رقِّ الباقة لإضافة بيانات جديدة.';
+    if (/quota_files_full/.test(m)) return 'امتلأت مساحة الملفات في باقتك. احذف بعض الملفات أو جدّد/رقِّ الباقة لرفع ملفات جديدة.';
     const map = { forbidden: 'غير مسموح لك بهذه العملية.', not_found: 'الحساب غير موجود.', office_inactive: 'المكتب موقوف.',
       bad_role: 'دور غير صالح.', client_required: 'اربط حساب الموكل بسجل العميل.', bad_username: 'اسم الدخول غير صالح.',
       invalid_target: 'تعذر ربط الحساب الجديد. أعد المحاولة.', profile_exists: 'الحساب موجود بالفعل.',
@@ -308,6 +311,7 @@
     if (e && e.network) { lastError = ''; return; }
     if (e && (e.status === 401 || e.status === 403) && /jwt|expired|token/i.test(e.message || '')) expired = true;
     lastError = (e && e.message) || 'خطأ';
+    if (e && /quota_db_full/.test(e.message || '') && Date.now() - (onSyncError._q || 0) > 60000) { onSyncError._q = Date.now(); lastError = 'امتلأت مساحة بيانات القضايا'; toast(friendly(e)); }
     console.warn('[mk sync]', e && e.message, e && e.stack);
   }
   function rerender() {
@@ -439,7 +443,7 @@
       if (e.network) return offlineLogin(username, password);
       if (e.status === 400 || e.status === 401 || e.status === 422) {
         if (/not confirmed|email_not_confirmed|email_provider_disabled|disabled/i.test(e.message + ' ' + JSON.stringify(e.data || ''))) throw e;
-        throw uerr('بيانات الدخول غير صحيحة. تأكد من اسم الدخول وكلمة المرور، وأن المستخدم موجود في Supabase ببريد ' + username + DOMAIN);
+        throw uerr('بيانات الدخول غير صحيحة. تأكد من اسم الدخول وكلمة المرور، وأن المستخدم موجود في الخادم ببريد ' + username + DOMAIN);
       }
       throw e;
     }
@@ -471,7 +475,7 @@
         catch { throw uerr('اسم الدخول مستخدم بالفعل، اختر اسمًا آخر.'); }
       } else throw e;
     }
-    if (!r || !r.access_token) throw uerr('إعداد Supabase: عطّل خيار «Confirm email» من Authentication ← Providers ← Email ثم أعد المحاولة.');
+    if (!r || !r.access_token) throw uerr('إعداد الخادم: عطّل خيار «Confirm email» من Authentication ← Providers ← Email ثم أعد المحاولة.');
     saveSession(r);
     const exist = await api('/rest/v1/profiles?user_id=eq.' + r.user.id + '&select=user_id', { token: r.access_token });
     if (exist.length) throw uerr('هذا الحساب موجود بالفعل. استخدم «تسجيل الدخول».');
@@ -578,7 +582,7 @@
         let r;
         try { r = await api('/auth/v1/signup', { method: 'POST', body: { email: username + DOMAIN, password } }); }
         catch (e) { if (!e.network && /registered|already|exists/i.test(e.message + ' ' + JSON.stringify(e.data || ''))) return alert('اسم الدخول مستخدم بالفعل، اختر اسمًا آخر.'); throw e; }
-        if (!r || !r.access_token) return alert('إعداد Supabase: عطّل خيار «Confirm email» ثم أعد المحاولة.');
+        if (!r || !r.access_token) return alert('إعداد الخادم: عطّل خيار «Confirm email» ثم أعد المحاولة.');
         newId = r.user.id;
         await rpc('add_member', { p_user_id: newId, p_username: username, p_full_name: name, p_role: role, p_permissions: perms, p_client_id: clientId || null, p_extra: extra });
       } else {
@@ -625,8 +629,8 @@
     const map = { forbidden: 'غير مسموح لك بهذه العملية.', not_found: 'الحساب غير موجود في مكتبك.',
       weak_password: 'كلمة المرور من 8 إلى 72 حرفًا.', office_readonly: 'المكتب في وضع العرض فقط. جدّد الاشتراك أولًا.',
       rate_limited: 'محاولات كثيرة. حاول بعد ساعة.', unauthorized: 'انتهت الجلسة. اخرج وسجّل الدخول من جديد.',
-      update_failed: 'رفض Supabase كلمة المرور' + (d && d.detail ? ': ' + d.detail : '') };
-    if (res.status === 404 && !code) throw uerr('دالة admin-members غير منشورة في Supabase بعد. انشرها أولًا (خطوات النشر في README).');
+      update_failed: 'رفض الخادم كلمة المرور' + (d && d.detail ? ': ' + d.detail : '') };
+    if (res.status === 404 && !code) throw uerr('دالة admin-members غير منشورة في الخادم بعد. انشرها أولًا (خطوات النشر في README).');
     throw uerr(map[code] || ('تعذر التنفيذ (HTTP ' + res.status + ')'));
   }
   window.dqResetAccountPassword = function (id) {

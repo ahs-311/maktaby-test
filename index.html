@@ -1124,6 +1124,31 @@ img,svg,video,canvas{max-width:100%}
       color: #2B2B2B !important;
     }
 
+
+/* ===== شاشة الدخول: تمرير واحد فقط، ولا يُقصّ المحتوى من الأعلى، وتتناسب مع حجم الشاشة ===== */
+html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="none"])){overflow:hidden!important}
+#dqAuthGate{align-items:flex-start;justify-content:center;height:100vh;height:100dvh;box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:14px}
+#dqAuthGate .auth-card{margin:auto;box-sizing:border-box}
+@media (min-width:900px){
+  #dqAuthGate{padding:16px}
+  #dqAuthGate .auth-card{width:min(100%,940px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px;row-gap:0;align-content:start;padding:20px 28px}
+  #dqAuthGate .auth-card>*{grid-column:1}
+  #dqAuthGate .auth-card>#mkGateExtras{grid-column:2;grid-row:1/span 5;margin:0;padding:0;padding-inline-start:28px;border-top:0!important;border-inline-start:1px solid #E5D9C8;align-self:start}
+  #dqAuthGate .auth-card>div:first-child{font-size:26px!important;margin-bottom:2px!important}
+  #dqAuthGate h2{font-size:22px;margin:0 0 4px}
+  #dqAuthGate .dq-auth-note{margin:6px 0 8px;font-size:12.5px;line-height:1.7}
+  #dqAuthGate .form-group{margin:8px 0}
+  #dqAuthGate input,#dqAuthGate select{padding:9px}
+}
+@media (min-width:900px) and (max-height:760px){
+  #dqAuthGate{padding:8px}
+  #dqAuthGate .auth-card{padding:10px 22px}
+  #dqAuthGate .auth-card>div:first-child{font-size:20px!important;margin-bottom:0!important}
+  #dqAuthGate h2{font-size:19px}
+  #dqAuthGate input,#dqAuthGate select{padding:7px 9px}
+  #dqAuthGate .form-group{margin:6px 0}
+  #dqAuthGate .dq-auth-note{margin:4px 0 6px;font-size:12px;line-height:1.55}
+}
 </style>
 </head>
 <body>
@@ -4232,7 +4257,7 @@ async function attachFiles(caseId, input) {
       await FileStore.put(id, blob);
       meta.unshift({ id, caseId, name: f.name, type: blob.type || f.type, size: blob.size, createdAt: new Date().toISOString() });
       added++;
-    } catch (e) { alert('تعذر حفظ ' + f.name + ' (قد تكون مساحة المتصفح ممتلئة)'); }
+    } catch (e) { if (!(e && e.quota)) alert('تعذر حفظ ' + f.name + ' (قد تكون مساحة المتصفح ممتلئة)'); }
   }
   DB.set('attachments', meta);
   if (added) toast('تم رفع ' + added + ' ملف');
@@ -8294,6 +8319,7 @@ window.addEventListener('focus', function() {
 <script src="mk-toolkit.js"></script>
 <script src="mk-legal.js"></script>
 <script src="mk-cloud.js"></script>
+<script src="mk-storage.js"></script>
 <script src="mk-avatars.js"></script>
 <script src="mk-notify.js"></script>
 </body>

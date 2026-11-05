@@ -69,7 +69,7 @@
   const friendly = e => {
     const m = (window.MK && MK.friendly) ? MK.friendly(e) : String((e && e.message) || e);
     return m.replace('bad_image', 'الصورة غير صالحة أو كبيرة.')
-      .replace(/PGRST202|could not find the function/i, 'لم يُنفَّذ ملف supabase-migration-06-avatars.sql بعد في Supabase.');
+      .replace(/PGRST202|could not find the function/i, 'ميزة الصور لم تُفعَّل بعد على الخادم. تواصل مع مسؤول النظام.');
   };
   async function loadMine() {
     const a = acct(); if (!a) return;

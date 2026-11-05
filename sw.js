@@ -1,11 +1,12 @@
 /* مكتبي الإلكتروني — Service Worker (يعمل أونلاين وأوفلاين) */
-const VERSION = "maktabi-v1.9.7-no-credits";
+const VERSION = "maktabi-v1.9.9-storage-quota";
 const CORE = [
   "./",
   "./index.html",
   "./manifest.json",
   "./mk-config.js",
   "./mk-cloud.js",
+  "./mk-storage.js",
   "./mk-avatars.js",
   "./mk-legal.js",
   "./mk-notify.js",
