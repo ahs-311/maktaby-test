@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       /* وفق لوحة الألوان المطلوبة — مكتب قانوني فاخر */
@@ -454,18 +454,50 @@
       color: var(--text); outline: none;
     }
 
-    /* Tables */
-    table { width: 100%; border-collapse: collapse; }
+    /* Tables — منع تكسّر الحروف العربية عمودياً */
+    table { width: 100%; border-collapse: collapse; table-layout: auto; }
     th, td {
       padding: 12px 14px; text-align: right;
       border-bottom: 1px solid var(--border); font-size: 14px;
+      vertical-align: middle;
+      word-break: keep-all;
+      overflow-wrap: normal;
+      line-height: 1.6;
     }
     th {
       background: var(--bg); font-weight: 600;
       color: var(--text-muted); font-size: 13px; position: sticky; top: 0;
+      white-space: nowrap;
     }
     tr:hover td { background: var(--bg); }
-    .table-wrap { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+    .table-wrap { overflow-x: auto; max-height: 500px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap table { min-width: 920px; width: max-content; max-width: none; }
+    .table-wrap td { white-space: nowrap; }
+    .table-wrap td.actions-cell { white-space: normal; min-width: 220px; }
+    .table-wrap td.mk-cell-wrap { white-space: normal; min-width: 160px; max-width: 280px; }
+
+    /* بطاقات الموبايل للجداول */
+    .mk-card-list { display: none; flex-direction: column; gap: 10px; }
+    .mk-data-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px; box-shadow: var(--shadow);
+    }
+    .mk-data-card .mk-card-title {
+      font-weight: 700; font-size: 15px; color: var(--accent); cursor: pointer;
+      margin-bottom: 8px; line-height: 1.5; word-break: keep-all;
+    }
+    .mk-data-card .mk-card-row {
+      display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px;
+      margin-bottom: 6px; line-height: 1.6; color: var(--text);
+    }
+    .mk-data-card .mk-card-row span.label {
+      color: var(--text-muted); font-size: 12px; margin-left: 4px;
+    }
+    .mk-data-card .mk-card-actions {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+      padding-top: 10px; border-top: 1px solid var(--border);
+    }
+    .mk-data-card .mk-card-actions .btn { flex: 1 1 auto; min-width: 70px; justify-content: center; }
 
     .badge {
       display: inline-block; padding: 3px 10px;
@@ -852,7 +884,10 @@
       .two-col { grid-template-columns:1fr !important; }
       .form-grid { grid-template-columns:1fr !important; }
       .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-      .table-wrap table { min-width:760px; }
+      .table-wrap table { min-width:920px; }
+      /* على الموبايل: بطاقات بدل الجداول الضيقة */
+      .mk-responsive-table .table-wrap { display: none !important; }
+      .mk-responsive-table .mk-card-list { display: flex !important; }
       .modal { width:calc(100vw - 20px) !important; max-height:calc(100dvh - 20px); overflow:auto; }
       .dq-office-form { grid-template-columns:1fr; }
       .month-grid { gap:3px; }
@@ -1018,10 +1053,19 @@ img,svg,video,canvas{max-width:100%}
 }
 .table-wrap th{white-space:nowrap}
 @media (max-width:760px){
-  .table-wrap td{min-width:72px}
-  .table-wrap td.actions-cell{min-width:250px}
+  .table-wrap td{min-width:110px;white-space:nowrap;word-break:keep-all}
+  .table-wrap td.actions-cell{min-width:250px;white-space:normal}
   .stat-card{padding:12px}
   .stat-card .value{font-size:20px}
+}
+/* خط عربي أوضح للمحتوى */
+body, .content, table, .mk-data-card, .btn, input, select, textarea {
+  font-family: 'Cairo', 'Segoe UI', Tahoma, 'Noto Naskh Arabic', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.mk-data-card, .table-wrap td, .table-wrap th {
+  letter-spacing: 0;
+  word-spacing: normal;
 }
 
 
@@ -1302,7 +1346,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
         <button class="btn btn-primary" onclick="openClientModal()">+ إضافة عميل</button>
         <button class="btn btn-outline" onclick="printAllClientsReport()">🖨️ طباعة كل العملاء وقضاياهم</button>
       </div>
-      <div class="card">
+      <div class="card mk-responsive-table">
         <div class="card-body no-pad">
           <div class="table-wrap">
             <table>
@@ -1315,6 +1359,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
               <tbody id="clientsTable"></tbody>
             </table>
           </div>
+          <div class="mk-card-list" id="clientsCards" style="padding:12px;"></div>
           <div class="empty-state" id="clientsEmpty"><div class="icon">👥</div><p>لا يوجد عملاء بعد</p></div>
         </div>
       </div>
@@ -1357,7 +1402,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
         <button class="btn btn-outline" onclick="printAllCasesReport('full')">🖨️ طباعة كل القضايا</button>
         <button class="btn btn-outline" onclick="printAllCasesReport('latest')">طباعة آخر المستجدات</button>
       </div>
-      <div class="card">
+      <div class="card mk-responsive-table">
         <div class="card-body no-pad">
           <div class="table-wrap">
             <table>
@@ -1370,6 +1415,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
               <tbody id="casesTable"></tbody>
             </table>
           </div>
+          <div class="mk-card-list" id="casesCards" style="padding:12px;"></div>
           <div class="empty-state" id="casesEmpty"><div class="icon">📁</div><p>لا توجد قضايا</p></div>
         </div>
       </div>
@@ -2795,20 +2841,22 @@ function renderClients() {
 
   const cases = DB.get('cases');
   const tbody = document.getElementById('clientsTable');
+  const cards = document.getElementById('clientsCards');
   const empty = document.getElementById('clientsEmpty');
   if (!list.length) {
-    tbody.innerHTML = '';
-    empty.style.display = 'block';
+    if (tbody) tbody.innerHTML = '';
+    if (cards) cards.innerHTML = '';
+    if (empty) empty.style.display = 'block';
     return;
   }
-  empty.style.display = 'none';
+  if (empty) empty.style.display = 'none';
   const dIdx = dqNextDates();
   const rowsInfo = list.map(c => {
     const cs = cases.filter(x => x.clientId === c.id);
     return { c, cnt: cs.length, end: cs.length > 0 && cs.every(x => x.status === 'منتهية'), nx: dIdx.clientNext[c.id] || '' };
   });
   rowsInfo.sort((a, b) => (a.end - b.end) || ((a.nx ? 0 : 1) - (b.nx ? 0 : 1)) || (a.nx && b.nx ? a.nx.localeCompare(b.nx) : 0));
-  tbody.innerHTML = rowsInfo.map(({ c, cnt, end, nx }) => {
+  if (tbody) tbody.innerHTML = rowsInfo.map(({ c, cnt, end, nx }) => {
     return `<tr class="${end ? 'dq-row-ended' : ''}">
       <td><strong style="cursor:pointer;color:var(--accent);" onclick="viewClient('${c.id}')">${esc(c.name)}</strong>${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</td>
       <td>${esc(c.phone)}</td>
@@ -2825,6 +2873,21 @@ function renderClients() {
         <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
       </td>
     </tr>`;
+  }).join('');
+  if (cards) cards.innerHTML = rowsInfo.map(({ c, cnt, end, nx }) => {
+    const nextTxt = end ? '—' : (nx ? esc(nx) + ' (' + dqRelDay(nx) + ')' : '—');
+    return `<div class="mk-data-card ${end ? 'dq-row-ended' : ''}">
+      <div class="mk-card-title" onclick="viewClient('${c.id}')">${esc(c.name)}${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</div>
+      <div class="mk-card-row"><span class="label">الهاتف:</span>${esc(c.phone) || '—'} <span class="label">النوع:</span><span class="badge badge-blue">${esc(c.type)}</span> <span class="label">الحالة:</span><span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div>
+      <div class="mk-card-row"><span class="label">القضايا:</span>${cnt} <span class="label">أقرب موعد:</span>${nextTxt} <span class="label">أُضيف:</span>${formatDate(c.createdAt)}</div>
+      ${c.email ? `<div class="mk-card-row"><span class="label">البريد:</span>${esc(c.email)}</div>` : ''}
+      <div class="mk-card-actions">
+        <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
+        <button class="btn btn-outline btn-sm" onclick="printClientReport('${c.id}')">طباعة</button>
+        <button class="btn btn-outline btn-sm" onclick="openClientModal('${c.id}')">تعديل</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -3434,6 +3497,25 @@ function sortCasesByNearest(list, idx) {
   });
 }
 
+function caseCardHTML(c, clients) {
+  const client = (clients || DB.get('clients')).find(x => x.id === c.clientId);
+  const si = caseSessionInfo(c.id);
+  const numDisp = formatCaseNumbersDisplay(c);
+  return `<div class="mk-data-card ${c.status === 'منتهية' ? 'dq-row-ended' : ''}">
+    <div class="mk-card-title" onclick="viewCase('${c.id}')">${esc(c.number || 'لم يصدر رقم بعد')}${c.degree ? ' · ' + esc(c.degree) : ''}</div>
+    ${(c.numbers && c.numbers.length > 1) ? `<div class="mk-card-row" style="font-size:12px;color:var(--text-muted);">${esc(numDisp)}</div>` : ''}
+    <div class="mk-card-row"><span class="label">الموضوع:</span><strong>${esc(c.subject)}</strong></div>
+    <div class="mk-card-row"><span class="label">الموكل:</span>${client ? esc(client.name) : 'مستقلة'} <span class="label">الخصوم:</span>${esc(opponentsText(c)) || '—'}</div>
+    <div class="mk-card-row"><span class="label">المحكمة:</span>${esc(c.court) || '—'} <span class="label">النوع:</span>${esc(c.type)} <span class="label">المرحلة:</span>${esc(c.stage) || '—'}</div>
+    <div class="mk-card-row"><span class="label">الحالة:</span><span class="badge ${caseStatusBadgeCls(c.status)}">${esc(c.status)}</span> <span class="label">آخر نتيجة:</span>${si.last ? esc(si.last.outcome) : '—'} <span class="label">القادمة:</span>${si.next ? esc(si.next.date) : '—'}</div>
+    <div class="mk-card-actions">
+      <button class="btn btn-outline btn-sm" onclick="viewCase('${c.id}')">عرض</button>
+      <button class="btn btn-outline btn-sm" onclick="openCaseModal('${c.id}')">تعديل</button>
+      <button class="btn btn-outline btn-sm" onclick="printCaseReport('${c.id}','latest')">آخر المستجدات</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCase('${c.id}')">حذف</button>
+    </div>
+  </div>`;
+}
 function renderCases() {
   let list = DB.get('cases');
   const q = (document.getElementById('caseSearch')?.value || '').trim().toLowerCase();
@@ -3453,20 +3535,17 @@ function renderCases() {
 
   const clients = DB.get('clients');
   const tbody = document.getElementById('casesTable');
+  const cards = document.getElementById('casesCards');
   const empty = document.getElementById('casesEmpty');
   if (!list.length) {
-    tbody.innerHTML = '';
-    empty.style.display = 'block';
+    if (tbody) tbody.innerHTML = '';
+    if (cards) cards.innerHTML = '';
+    if (empty) empty.style.display = 'block';
     return;
   }
-  empty.style.display = 'none';
-  const statusBadge = s => {
-    if (s === 'نشطة') return 'badge-green';
-    if (s === 'معلقة') return 'badge-yellow';
-    if (s === 'منتهية') return 'badge-blue';
-    return 'badge-red';
-  };
-  tbody.innerHTML = list.map(c => caseRowHTML(c, clients)).join('');
+  if (empty) empty.style.display = 'none';
+  if (tbody) tbody.innerHTML = list.map(c => caseRowHTML(c, clients)).join('');
+  if (cards) cards.innerHTML = list.map(c => caseCardHTML(c, clients)).join('');
 }
 
 // ===================== SESSIONS (Hearing core) =====================
