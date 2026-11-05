@@ -29,6 +29,134 @@
   const netErr = () => { const e = new Error('network'); e.network = true; return e; };
   const validUser = u => /^[a-z0-9._-]{3,30}$/.test(u);
   const arDigits = s => String(s || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  const normPhone = s => arDigits(s).replace(/[^\d+]/g, '').replace(/^00/, '+').replace(/^0/, '0');
+  const isEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
+  const isPhone = s => {
+    const p = normPhone(s);
+    return /^(?:\+?2)?01[0125]\d{8}$/.test(p) || /^\+?[1-9]\d{7,14}$/.test(p);
+  };
+  function contactFromExtra(x) {
+    x = x || {};
+    return { email: (x.contactEmail || x.email || '').trim().toLowerCase(), phone: normPhone(x.contactPhone || x.phone || '') };
+  }
+  /** يبحث عن اسم الدخول من يوزرنيم أو بريد أو هاتف (أوفلاين أولاً ثم قائمة الحسابات إن وُجدت) */
+  function resolveUsername(identifier) {
+    const raw = String(identifier || '').trim().toLowerCase();
+    if (!raw) return null;
+    const all = LS.get('mk_offline_auth', {});
+    if (all[raw]) return raw;
+    const phoneQ = normPhone(identifier);
+    for (const [u, rec] of Object.entries(all)) {
+      const p = rec.profile || {};
+      const c = contactFromExtra(p.extra);
+      if ((p.username || u).toLowerCase() === raw) return u;
+      if (c.email && c.email === raw) return u;
+      if (c.phone && (c.phone === phoneQ || c.phone.endsWith(phoneQ.slice(-10)))) return u;
+      if (rec.contactEmail && rec.contactEmail.toLowerCase() === raw) return u;
+      if (rec.contactPhone && (normPhone(rec.contactPhone) === phoneQ || normPhone(rec.contactPhone).endsWith(phoneQ.slice(-10)))) return u;
+    }
+    try {
+      const accts = (typeof dqAccounts === 'function' ? dqAccounts() : []) || [];
+      const hit = accts.find(a => {
+        const em = (a.contactEmail || a.email || '').toLowerCase();
+        const ph = normPhone(a.contactPhone || a.phone || '');
+        return (a.username || '').toLowerCase() === raw || em === raw || (ph && (ph === phoneQ || ph.endsWith(phoneQ.slice(-10))));
+      });
+      if (hit) return (hit.username || '').toLowerCase();
+    } catch (e) { }
+    if (validUser(raw)) return raw;
+    return null;
+  }
+  function genOtp() { return String(Math.floor(100000 + Math.random() * 900000)); }
+  async function hashOtp(code, salt) {
+    try {
+      if (window.crypto && crypto.subtle) {
+        const bytes = new TextEncoder().encode(String(salt) + '|' + String(code));
+        const dig = await crypto.subtle.digest('SHA-256', bytes);
+        return Array.from(new Uint8Array(dig)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch (e) { }
+    return 'x-' + String(code) + '-' + String(salt);
+  }
+  function otpStore() { return LS.get('mk_otp_store', {}); }
+  function otpSave(map) { LS.set('mk_otp_store', map); }
+  async function issueOtp(kind, username, channel, dest) {
+    const code = genOtp();
+    const salt = b64e(crypto.getRandomValues(new Uint8Array(8)));
+    const map = otpStore();
+    map[username + ':' + kind] = { hash: await hashOtp(code, salt), salt, exp: Date.now() + 15 * 60 * 1000, channel, dest, tries: 0 };
+    otpSave(map);
+    return code;
+  }
+  async function verifyOtp(kind, username, code) {
+    const map = otpStore();
+    const rec = map[username + ':' + kind];
+    if (!rec) return false;
+    if (Date.now() > rec.exp) { delete map[username + ':' + kind]; otpSave(map); return false; }
+    rec.tries = (rec.tries || 0) + 1;
+    if (rec.tries > 8) { delete map[username + ':' + kind]; otpSave(map); return false; }
+    otpSave(map);
+    const ok = (await hashOtp(String(code).trim(), rec.salt)) === rec.hash;
+    if (ok) { delete map[username + ':' + kind]; otpSave(map); }
+    return ok;
+  }
+  /** إرسال مجاني 100%: واتساب لنفس الرقم + بريد عبر تطبيق الجهاز + نسخ/مشاركة — بلا بوابات مدفوعة */
+  function waPhone(phone) {
+    let p = normPhone(phone).replace(/^\+/, '');
+    if (/^01[0125]\d{8}$/.test(p)) p = '20' + p.slice(1);
+    return p;
+  }
+  function deliverOtpFree(code, { email, phone, purpose }) {
+    const title = purpose || 'كود التحقق — مكتبي';
+    const body = title + '\n\nالكود: ' + code + '\nصالح لمدة 15 دقيقة.\nلا تشاركه مع أحد.';
+    return new Promise(resolve => {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl';
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--card,#fff);color:var(--text,#111);border-radius:14px;padding:20px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25)';
+      card.innerHTML = '<h3 style="margin:0 0 8px;font-size:17px">كود التحقق (مجاني)</h3>' +
+        '<p style="margin:0 0 12px;font-size:13px;opacity:.8">بدون رسائل مدفوعة. اختر طريقة مجانية لإيصال الكود لنفسك، أو انسخه مباشرة.</p>' +
+        '<div style="font-size:28px;font-weight:700;letter-spacing:6px;text-align:center;padding:12px;background:rgba(0,0,0,.06);border-radius:10px;margin-bottom:14px;direction:ltr">' + code + '</div>' +
+        '<div id="mkOtpActions" style="display:flex;flex-direction:column;gap:8px"></div>';
+      ov.appendChild(card);
+      document.body.appendChild(ov);
+      const actions = card.querySelector('#mkOtpActions');
+      const btn = (label, fn, primary) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = primary ? 'btn btn-primary' : 'btn btn-outline';
+        b.style.cssText = 'width:100%;justify-content:center;padding:10px';
+        b.textContent = label;
+        b.onclick = fn;
+        actions.appendChild(b);
+        return b;
+      };
+      if (phone) {
+        btn('📱 إرسال لنفسك عبر واتساب (مجاني)', () => {
+          const n = waPhone(phone);
+          window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(body), '_blank');
+        }, true);
+      }
+      if (email) {
+        btn('✉️ فتح البريد لإرسال الكود لنفسك (مجاني)', () => {
+          window.location.href = 'mailto:' + encodeURIComponent(email) +
+            '?subject=' + encodeURIComponent(title) +
+            '&body=' + encodeURIComponent(body);
+        }, !phone);
+      }
+      btn('📋 نسخ الكود', async () => {
+        try { await navigator.clipboard.writeText(code); } catch {
+          const t = document.createElement('textarea'); t.value = code; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+        }
+        alert('تم نسخ الكود');
+      });
+      if (navigator.share) {
+        btn('🔗 مشاركة…', () => { navigator.share({ title, text: body }).catch(() => { }); });
+      }
+      btn('متابعة وإدخال الكود', () => { ov.remove(); resolve(); }, !phone && !email);
+      ov.addEventListener('click', e => { if (e.target === ov) { ov.remove(); resolve(); } });
+    });
+  }
 
   let session = LS.get('mk_session', null);
   let me = null;               // الحساب الحالي (نفس شكل dqCurrentAccount)
@@ -106,11 +234,13 @@
     const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: b64d(salt), iterations: iter }, key, 256);
     return b64e(new Uint8Array(bits));
   }
-  async function saveOffline(username, password, prof, off) {
+  async function saveOffline(username, password, prof, off, contacts) {
     const all = LS.get('mk_offline_auth', {});
     const salt = b64e(crypto.getRandomValues(new Uint8Array(16))), iter = 150000;
+    const c = contacts || contactFromExtra((prof && prof.extra) || {});
     all[username] = { salt, iter, hash: await derive(password, salt, iter), profile: prof,
-      office: off ? { id: off.id, name: off.name } : null, savedAt: Date.now() };
+      office: off ? { id: off.id, name: off.name } : null, savedAt: Date.now(),
+      contactEmail: c.email || '', contactPhone: c.phone || '' };
     LS.set('mk_offline_auth', all);
   }
   function removeOffline(username) { const a = LS.get('mk_offline_auth', {}); delete a[username]; LS.set('mk_offline_auth', a); }
@@ -119,10 +249,14 @@
   const officeId = () => (me && me.role !== 'owner' && me.officeId) || null;
   function toAccount(p) {
     const x = p.extra || {};
+    const c = contactFromExtra(x);
     return { id: p.user_id, name: p.full_name, username: p.username, role: p.role,
       permissions: p.role === 'owner' ? DQ_MODULES.map(m => m[0]) : (Array.isArray(p.permissions) ? p.permissions : []),
       clientId: p.client_id || null, active: p.active !== false, officeId: p.office_id || null,
-      regNo: x.regNo || '', nationalId: x.nationalId || '', regGrade: x.regGrade || '', createdAt: p.created_at, pwVersion: p.pw_version || 0 };
+      regNo: x.regNo || '', nationalId: x.nationalId || '', regGrade: x.regGrade || '',
+      contactEmail: c.email, contactPhone: c.phone,
+      emailVerified: !!x.emailVerified, phoneVerified: !!x.phoneVerified,
+      createdAt: p.created_at, pwVersion: p.pw_version || 0 };
   }
 
   /* ---------------- عزل بيانات الأجهزة بين المكاتب ---------------- */
@@ -366,19 +500,34 @@
   function gate(mode) {
     const link = (m, t) => '<div style="text-align:center;margin-top:12px"><a href="#" onclick="mkGate(\'' + m + '\');return false">' + t + '</a></div>';
     if (mode === 'register') {
-      dqSetGate('إنشاء حساب مدير مكتب', 'سيُنشأ مكتب جديد بياناته وحساباته منفصلة تمامًا عن باقي المكاتب، وحسابك هو حساب المدير. هذه الخطوة تحتاج إنترنت.',
+      dqSetGate('إنشاء حساب مدير مكتب', 'سيُنشأ مكتب جديد منفصل. يلزم بريد إلكتروني أو رقم هاتف (أحدهما على الأقل) لتأكيد الحساب واستعادة كلمة المرور.',
         F('mkOfficeName', 'اسم المكتب', 'required placeholder="مثال: مكتب الأستاذ ..."') +
         F('dqAuthName', 'اسم المدير', 'required autocomplete="name"') +
         F('dqAuthUsername', 'اسم الدخول (إنجليزي: حروف وأرقام)', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="مثال: ahmed.law"') +
+        F('dqAuthEmail', 'البريد الإلكتروني (أو اتركه فارغًا إن أدخلت هاتفًا)', 'type="email" dir="ltr" autocomplete="email" placeholder="name@example.com"') +
+        F('dqAuthPhone', 'رقم الهاتف (أو اتركه فارغًا إن أدخلت بريدًا)', 'type="tel" dir="ltr" autocomplete="tel" placeholder="01xxxxxxxxx"') +
         F('dqAuthPassword', 'كلمة المرور (8 أحرف على الأقل)', 'type="password" required autocomplete="new-password"') +
         F('dqAuthPassword2', 'تأكيد كلمة المرور', 'type="password" required autocomplete="new-password"') +
         (window.MK_LEGAL ? MK_LEGAL.consentHtml() : '') +
         link('login', 'لدي حساب بالفعل — تسجيل الدخول'), 'إنشاء المكتب');
       $('dqAuthForm').dataset.mode = 'mk-register';
+    } else if (mode === 'forgot') {
+      dqSetGate('نسيت كلمة المرور', 'أدخل اسم الدخول أو البريد أو رقم الهاتف المسجّل. سيُصدر كود تفعيل لمدة 15 دقيقة.',
+        F('dqAuthUsername', 'اسم الدخول أو البريد أو الهاتف', 'required dir="ltr" autocapitalize="none" autocomplete="username"') +
+        link('login', 'العودة لتسجيل الدخول'), 'إرسال كود التحقق');
+      $('dqAuthForm').dataset.mode = 'mk-forgot';
+    } else if (mode === 'reset') {
+      dqSetGate('تعيين كلمة مرور جديدة', 'أدخل كود التحقق الذي وصلك (أو المعروض على هذا الجهاز) ثم كلمة المرور الجديدة.',
+        F('dqAuthOtp', 'كود التحقق (6 أرقام)', 'required dir="ltr" inputmode="numeric" autocomplete="one-time-code" maxlength="6"') +
+        F('dqAuthPassword', 'كلمة المرور الجديدة (8 أحرف على الأقل)', 'type="password" required autocomplete="new-password"') +
+        F('dqAuthPassword2', 'تأكيد كلمة المرور', 'type="password" required autocomplete="new-password"') +
+        link('forgot', 'إعادة إرسال الكود') + link('login', 'العودة لتسجيل الدخول'), 'حفظ كلمة المرور');
+      $('dqAuthForm').dataset.mode = 'mk-reset';
     } else {
-      dqSetGate('تسجيل الدخول', 'أدخل اسم الدخول وكلمة المرور. يعمل الدخول بدون إنترنت على الأجهزة التي سجّلت منها الدخول مسبقًا.',
-        F('dqAuthUsername', 'اسم الدخول', 'required dir="ltr" autocapitalize="none" autocomplete="username"') +
+      dqSetGate('تسجيل الدخول', 'ادخل بالبريد أو رقم الهاتف أو اسم الدخول، مع كلمة المرور. يعمل بدون إنترنت على الأجهزة التي سجّلت منها سابقًا.',
+        F('dqAuthUsername', 'البريد أو الهاتف أو اسم الدخول', 'required dir="ltr" autocapitalize="none" autocomplete="username"') +
         F('dqAuthPassword', 'كلمة المرور', 'type="password" required autocomplete="current-password"') +
+        link('forgot', 'نسيت كلمة المرور؟') +
         link('register', 'إنشاء مكتب جديد (مدير مكتب)'), 'دخول');
       $('dqAuthForm').dataset.mode = 'mk-login';
     }
@@ -426,24 +575,33 @@
   window.dqSubmitAuth = async function (ev) {
     ev.preventDefault();
     const mode = $('dqAuthForm').dataset.mode;
-    if (mode !== 'mk-login' && mode !== 'mk-register') return origSubmit(ev);
+    if (mode !== 'mk-login' && mode !== 'mk-register' && mode !== 'mk-forgot' && mode !== 'mk-reset') return origSubmit(ev);
     const btn = $('dqAuthSubmit'), label = btn.textContent; btn.disabled = true; btn.textContent = 'جارٍ المعالجة…';
-    try { if (mode === 'mk-register') await register(); else await login(); }
+    try {
+      if (mode === 'mk-register') await register();
+      else if (mode === 'mk-forgot') await forgotPassword();
+      else if (mode === 'mk-reset') await resetPasswordWithOtp();
+      else await login();
+    }
     catch (e) { if (!(e && (e.user || e.network))) console.error(e); alert(friendly(e)); }
     finally { btn.disabled = false; btn.textContent = label; }
     return false;
   };
 
   async function login() {
-    const username = ($('dqAuthUsername').value || '').trim().toLowerCase(), password = $('dqAuthPassword').value || '';
-    if (!validUser(username) || !password) throw uerr('أدخل اسم الدخول وكلمة المرور.');
+    const identifier = ($('dqAuthUsername').value || '').trim(), password = $('dqAuthPassword').value || '';
+    if (!identifier || !password) throw uerr('أدخل البريد أو الهاتف أو اسم الدخول مع كلمة المرور.');
+    const username = resolveUsername(identifier);
+    if (!username) throw uerr('لم يُعثر على حساب بهذه البيانات على هذا الجهاز. جرّب اسم الدخول، أو سجّل الدخول مرة وأنت متصل بالإنترنت.');
     let r;
     try { r = await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: username + DOMAIN, password } }); }
     catch (e) {
       if (e.network) return offlineLogin(username, password);
       if (e.status === 400 || e.status === 401 || e.status === 422) {
         if (/not confirmed|email_not_confirmed|email_provider_disabled|disabled/i.test(e.message + ' ' + JSON.stringify(e.data || ''))) throw e;
-        throw uerr('بيانات الدخول غير صحيحة. تأكد من اسم الدخول وكلمة المرور، وأن المستخدم موجود في الخادم ببريد ' + username + DOMAIN);
+        // جرّب أوفلاين إن وُجدت جلسة محفوظة بكلمة مرور محدّثة محليًا
+        try { return await offlineLogin(username, password); } catch (_) { }
+        throw uerr('بيانات الدخول غير صحيحة. تأكد من المعرّف وكلمة المرور.');
       }
       throw e;
     }
@@ -455,12 +613,58 @@
     if (await derive(password, rec.salt, rec.iter) !== rec.hash) throw uerr('بيانات الدخول غير صحيحة.');
     await enter(rec.profile, rec.office, true);
   }
+  async function forgotPassword() {
+    const identifier = ($('dqAuthUsername').value || '').trim();
+    if (!identifier) throw uerr('أدخل اسم الدخول أو البريد أو الهاتف.');
+    const username = resolveUsername(identifier);
+    if (!username) throw uerr('لا يوجد حساب محفوظ على هذا الجهاز بهذه البيانات. سجّل الدخول مرة وأنت متصل ثم أعد المحاولة، أو اطلب من المدير إعادة التعيين.');
+    const all = LS.get('mk_offline_auth', {});
+    const rec = all[username];
+    const c = contactFromExtra((rec && rec.profile && rec.profile.extra) || {});
+    const email = (rec && rec.contactEmail) || c.email || '';
+    const phone = (rec && rec.contactPhone) || c.phone || '';
+    if (!email && !phone) throw uerr('هذا الحساب لا يحتوي بريدًا ولا هاتفًا مربوطًا. اطلب من المدير إضافة وسيلة تواصل أو تعيين كلمة مرور.');
+    const channel = email ? 'email' : 'phone';
+    const dest = email || phone;
+    const code = await issueOtp('reset', username, channel, dest);
+    LS.set('mk_pending_reset_user', username);
+    await deliverOtpFree(code, { email, phone, purpose: 'استعادة كلمة المرور — مكتبي' });
+    gate('reset');
+  }
+  async function resetPasswordWithOtp() {
+    const username = LS.get('mk_pending_reset_user', null);
+    if (!username) throw uerr('انتهت جلسة الاستعادة. ابدأ من «نسيت كلمة المرور» مرة أخرى.');
+    const code = ($('dqAuthOtp').value || '').trim();
+    const pw = $('dqAuthPassword').value || '', pw2 = ($('dqAuthPassword2') || {}).value || '';
+    if (!/^\d{6}$/.test(code)) throw uerr('أدخل كود التحقق المكوّن من 6 أرقام.');
+    if (pw.length < 8) throw uerr('كلمة المرور 8 أحرف على الأقل.');
+    if (pw !== pw2) throw uerr('كلمتا المرور غير متطابقتين.');
+    if (!(await verifyOtp('reset', username, code))) throw uerr('كود التحقق غير صحيح أو منتهٍ.');
+    const all = LS.get('mk_offline_auth', {});
+    const rec = all[username];
+    if (!rec) throw uerr('لا توجد بيانات محفوظة لهذا الحساب على الجهاز.');
+    await saveOffline(username, pw, rec.profile, rec.office, { email: rec.contactEmail, phone: rec.contactPhone });
+    // إن أمكن تحديث كلمة المرور أونلاين بعد الدخول القديم لن يعمل — نحدّث الأوفلاين ونُعلم المستخدم
+    if (navigator.onLine && rec.profile && rec.profile.user_id) {
+      try {
+        // لا يمكن تغيير كلمة مرور Supabase بدون جلسة أو صلاحية مدير؛ الاعتماد على الأوفلاين + المدير
+      } catch (e) { }
+    }
+    LS.set('mk_pending_reset_user', null);
+    alert('تم تعيين كلمة المرور الجديدة على هذا الجهاز. يمكنك تسجيل الدخول بها الآن.\nإن فشل الدخول عبر الإنترنت، اطلب من مدير المكتب تعيين كلمة المرور من «الحسابات والصلاحيات».');
+    gate('login');
+  }
   async function register() {
     const office = ($('mkOfficeName').value || '').trim(), name = ($('dqAuthName').value || '').trim();
     const username = ($('dqAuthUsername').value || '').trim().toLowerCase();
+    const contactEmail = (($('dqAuthEmail') || {}).value || '').trim().toLowerCase();
+    const contactPhone = normPhone((($('dqAuthPhone') || {}).value || '').trim());
     const pw = $('dqAuthPassword').value || '', pw2 = $('dqAuthPassword2').value || '';
     if (office.length < 2 || !name) throw uerr('أكمل اسم المكتب واسم المدير.');
     if (!validUser(username)) throw uerr('اسم الدخول: حروف إنجليزية صغيرة وأرقام ونقطة وشرطة فقط (من 3 إلى 30).');
+    if (!contactEmail && !contactPhone) throw uerr('يلزم إدخال بريد إلكتروني أو رقم هاتف (أحدهما على الأقل).');
+    if (contactEmail && !isEmail(contactEmail)) throw uerr('صيغة البريد الإلكتروني غير صحيحة.');
+    if (contactPhone && !isPhone(contactPhone)) throw uerr('صيغة رقم الهاتف غير صحيحة.');
     if (pw.length < 8) throw uerr('كلمة المرور 8 أحرف على الأقل.');
     if (pw !== pw2) throw uerr('كلمتا المرور غير متطابقتين.');
     if (!navigator.onLine) throw uerr('إنشاء مكتب جديد يحتاج اتصالًا بالإنترنت.');
@@ -482,6 +686,27 @@
     await api('/rest/v1/rpc/create_office_v2', { method: 'POST', token: r.access_token,
       body: { p_office_name: office, p_full_name: name, p_username: username, p_permissions: DQ_MODULES.map(m => m[0]),
         p_policy_version: consent.version, p_policy_hash: consent.hash, p_policy_text: consent.text, p_client_info: consent.info } });
+    // حفظ وسائل التواصل في extra عبر update_member إن أمكن، وإلا في التخزين المحلي
+    const contactExtra = { contactEmail, contactPhone, emailVerified: false, phoneVerified: false };
+    try {
+      const prof0 = (await api('/rest/v1/profiles?user_id=eq.' + r.user.id + '&select=*', { token: r.access_token }))[0];
+      if (prof0) {
+        const merged = Object.assign({}, prof0.extra || {}, contactExtra);
+        // لا توجد سياسة update مباشرة؛ نُبقي في الأوفلاين وفي الذاكرة
+        prof0.extra = merged;
+        await finishLogin(r, username, pw);
+        const all = LS.get('mk_offline_auth', {});
+        if (all[username] && all[username].profile) {
+          all[username].profile.extra = merged;
+          all[username].contactEmail = contactEmail;
+          all[username].contactPhone = contactPhone;
+          LS.set('mk_offline_auth', all);
+        }
+        const code = await issueOtp('verify', username, contactEmail ? 'email' : 'phone', contactEmail || contactPhone);
+        await deliverOtpFree(code, { email: contactEmail, phone: contactPhone, purpose: 'تفعيل الحساب — مكتبي' });
+        return;
+      }
+    } catch (e) { console.warn(e); }
     await finishLogin(r, username, pw);
   }
   async function finishLogin(r, username, password) {
@@ -575,7 +800,15 @@
     if (role === 'lawyer' && nid && !/^\d{14}$/.test(nid)) return alert('الرقم القومي يجب أن يكون 14 رقمًا.');
     if (!navigator.onLine) return alert('إنشاء الحسابات وتعديلها يحتاج اتصالًا بالإنترنت.');
     const perms = Array.from(document.querySelectorAll('.dqPermCheck:checked')).map(c => c.value);
-    const extra = role === 'lawyer' ? { regNo: g('dqLawNo').trim(), nationalId: nid, regGrade: g('dqLawGrade') } : {};
+    const contactEmail = g('dqAccEmail').trim().toLowerCase();
+    const contactPhone = normPhone(g('dqAccPhone').trim());
+    if (!contactEmail && !contactPhone) return alert('يلزم بريد إلكتروني أو رقم هاتف للحساب (أحدهما على الأقل).');
+    if (contactEmail && !isEmail(contactEmail)) return alert('صيغة البريد غير صحيحة.');
+    if (contactPhone && !isPhone(contactPhone)) return alert('صيغة الهاتف غير صحيحة.');
+    const extra = Object.assign(
+      role === 'lawyer' ? { regNo: g('dqLawNo').trim(), nationalId: nid, regGrade: g('dqLawGrade') } : {},
+      { contactEmail, contactPhone }
+    );
     try {
       let newId = id;
       if (!id) {
@@ -587,7 +820,8 @@
         await rpc('add_member', { p_user_id: newId, p_username: username, p_full_name: name, p_role: role, p_permissions: perms, p_client_id: clientId || null, p_extra: extra });
       } else {
         const ex = dqAccounts().find(x => x.id === id) || {};
-        await rpc('update_member', { p_user_id: id, p_full_name: name, p_permissions: perms, p_client_id: clientId || null, p_extra: extra, p_active: ex.active !== false });
+        const prevExtra = { regNo: ex.regNo || '', nationalId: ex.nationalId || '', regGrade: ex.regGrade || '', emailVerified: !!ex.emailVerified, phoneVerified: !!ex.phoneVerified };
+        await rpc('update_member', { p_user_id: id, p_full_name: name, p_permissions: perms, p_client_id: clientId || null, p_extra: Object.assign(prevExtra, extra), p_active: ex.active !== false });
       }
       if (role === 'lawyer') {
         const nt = v => String(v || '').trim().toLocaleLowerCase('ar'); const ts = DB.get('tasks'); let ch = false;
@@ -669,7 +903,7 @@
       alert('تم تغيير كلمة المرور.');
     } catch (e) { alert(friendly(e)); }
   };
-  const toRaw = a => ({ user_id: a.id, office_id: a.officeId, username: a.username, full_name: a.name, role: a.role, permissions: a.permissions, client_id: a.clientId, active: a.active, pw_version: a.pwVersion || 0, extra: { regNo: a.regNo, nationalId: a.nationalId, regGrade: a.regGrade } });
+  const toRaw = a => ({ user_id: a.id, office_id: a.officeId, username: a.username, full_name: a.name, role: a.role, permissions: a.permissions, client_id: a.clientId, active: a.active, pw_version: a.pwVersion || 0, extra: { regNo: a.regNo, nationalId: a.nationalId, regGrade: a.regGrade, contactEmail: a.contactEmail || '', contactPhone: a.contactPhone || '', emailVerified: !!a.emailVerified, phoneVerified: !!a.phoneVerified } });
 
   /* ---------------- الاشتراك (تجربة/مدفوع/عرض فقط/إيقاف) ---------------- */
   const PAY_NUMBER = '01098848735', DAY = 86400000;
