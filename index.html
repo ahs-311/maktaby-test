@@ -1320,6 +1320,20 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
       </div>
     </div>
 
+    <!-- CLIENT DETAIL PAGE (صفحة كاملة للموكل بدل التبويب/النافذة) -->
+    <div class="page" id="page-client-detail">
+      <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
+        <button class="btn btn-outline" onclick="showPage('clients')">← رجوع للعملاء</button>
+        <h2 id="clientPageTitle" style="margin:0;font-size:18px;flex:1;">ملف الموكل</h2>
+        <button class="btn btn-outline" id="clientPageEditBtn">تعديل البيانات</button>
+        <button class="btn btn-outline" id="clientPagePrintBtn">🖨️ تقرير</button>
+        <button class="btn btn-outline" id="clientPagePrintAttBtn">🖨️ المرفقات</button>
+        <button class="btn btn-outline" id="clientPageWaBtn">💬 واتساب</button>
+        <button class="btn btn-primary" id="clientPageCaseBtn">+ قضية</button>
+      </div>
+      <div id="clientPageBody"></div>
+    </div>
+
     <!-- CASES -->
     <div class="page" id="page-cases">
       <div class="toolbar">
@@ -2040,9 +2054,25 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
         <div class="form-group"><label>المحامي المسؤول</label><input type="text" id="caseLawyer" /></div>
       </div>
       <div class="form-grid">
-        <div class="form-group"><label>درجة التقاضي</label>
-          <select id="caseDegree"><option>أول درجة</option><option>استئناف</option><option>نقض</option><option>تنفيذ</option><option>نيابة / تحقيق</option></select></div>
+        <div class="form-group"><label>درجة التقاضي الحالية</label>
+          <select id="caseDegree">
+            <option>أول درجة</option>
+            <option>معارضة</option>
+            <option>استئناف</option>
+            <option>معارضة استئنافية</option>
+            <option>نقض</option>
+            <option>وقف تنفيذ</option>
+            <option>تنفيذ</option>
+            <option>نيابة / تحقيق</option>
+            <option>إداري / محضر</option>
+          </select></div>
         <div class="form-group"><label>المرحلة الإجرائية</label><select id="caseStage"></select></div>
+      </div>
+      <div class="form-group">
+        <label>أرقام القضية حسب الدرجة (ربط الدرجات في ملف واحد)</label>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">القضية الواحدة قد يكون لها رقم جزئي ثم رقم استئناف ثم نقض... أضف كل رقم هنا ليظهروا معاً في نفس الملف.</p>
+        <div id="caseNumbersList"></div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addCaseNumberRow()">+ إضافة رقم / درجة</button>
       </div>
       <div class="form-group">
         <label>الأطراف (موكل / خصوم)</label>
@@ -2499,7 +2529,8 @@ function showPage(pageId, opts) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const page = document.getElementById('page-' + pageId);
   if (page) page.classList.add('active');
-  const nav = document.querySelector(`[data-page="${pageId}"]`);
+  const navKey = pageId === 'client-detail' ? 'clients' : pageId;
+  const nav = document.querySelector(`[data-page="${navKey}"]`);
   if (nav) nav.classList.add('active');
   if (!opts.skipHistory) {
     try {
@@ -2509,7 +2540,7 @@ function showPage(pageId, opts) {
   }
 
   const titles = {
-    dashboard: 'لوحة التحكم', clients: 'إدارة العملاء', cases: 'إدارة القضايا',
+    dashboard: 'لوحة التحكم', clients: 'إدارة العملاء', 'client-detail': 'ملف الموكل', cases: 'إدارة القضايا',
     calendar: 'المواعيد والجلسات', notes: 'الملاحظات', documents: 'المستندات',
     billing: 'الفواتير والمدفوعات', lawsuits: 'صحف الدعاوى (AI)',
     calculators: 'الحاسبات القانونية', deadlines: 'المدد والمواعيد القانونية', library: 'المكتبة القانونية',
@@ -2814,18 +2845,20 @@ function viewClient(id) {
   const clientEvents = DB.get('events').filter(e => e.caseId ? caseIds.includes(e.caseId) : e.clientId === id)
     .sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || '')));
 
-  document.getElementById('clientDetailTitle').textContent = 'ملف الموكل: ' + c.name;
-  document.getElementById('clientDetailEditBtn').onclick = () => { closeModal('clientDetailModal'); openClientModal(id); };
-  document.getElementById('clientDetailPrintBtn').onclick = () => printClientReport(id);
-  document.getElementById('clientDetailPrintAttBtn').onclick = () => openAttachmentsPrint('client', id);
-  document.getElementById('clientDetailWaBtn').onclick = () => whatsappClient(id);
-  document.getElementById('clientDetailCaseBtn').onclick = () => {
-    closeModal('clientDetailModal'); showPage('cases'); openCaseModal(null, { clientId: id });
+  // صفحة كاملة بدل النافذة المنبثقة
+  document.getElementById('clientPageTitle').textContent = 'ملف الموكل: ' + c.name;
+  document.getElementById('clientPageEditBtn').onclick = () => { openClientModal(id); };
+  document.getElementById('clientPagePrintBtn').onclick = () => printClientReport(id);
+  document.getElementById('clientPagePrintAttBtn').onclick = () => openAttachmentsPrint('client', id);
+  document.getElementById('clientPageWaBtn').onclick = () => whatsappClient(id);
+  document.getElementById('clientPageCaseBtn').onclick = () => {
+    showPage('cases'); openCaseModal(null, { clientId: id });
   };
 
   const none = t => `<p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">${t}</p>`;
-  document.getElementById('clientDetailBody').innerHTML = `
-    <div class="detail-grid" style="margin-bottom:20px;">
+  document.getElementById('clientPageBody').innerHTML = `
+    <div class="card" style="margin-bottom:16px;"><div class="card-body">
+    <div class="detail-grid" style="margin-bottom:12px;">
       <div class="detail-item"><label>الحالة</label><div class="val"><span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div></div>
       <div class="detail-item"><label>النوع</label><div class="val">${esc(c.type)}</div></div>
       <div class="detail-item"><label>الهاتف</label><div class="val">${esc(c.phone) || '—'}</div></div>
@@ -2833,19 +2866,21 @@ function viewClient(id) {
       <div class="detail-item"><label>الرقم القومي / السجل</label><div class="val">${esc(c.idNum) || '—'}</div></div>
       <div class="detail-item"><label>العنوان</label><div class="val">${esc(c.address) || '—'}</div></div>
     </div>
-    ${c.notes ? `<p style="margin-bottom:16px;font-size:14px;">${esc(c.notes)}</p>` : ''}
+    ${c.notes ? `<p style="margin-bottom:0;font-size:14px;">${esc(c.notes)}</p>` : ''}
+    </div></div>
 
     ${clientCasesSectionHTML(id)}
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px;flex-wrap:wrap;gap:8px;">
-      <h4 style="font-size:15px;">المواعيد (${clientEvents.length})</h4>
-      <button class="btn btn-primary btn-sm" onclick="closeModal('clientDetailModal');openEventModal(null,{clientId:'${id}',returnTo:'client',ownerId:'${id}'})">+ ميعاد</button>
+    <div class="card" style="margin-top:16px;"><div class="card-body">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <h4 style="font-size:15px;margin:0;">المواعيد (${clientEvents.length})</h4>
+      <button class="btn btn-primary btn-sm" onclick="openEventModal(null,{clientId:'${id}',returnTo:'client',ownerId:'${id}'})">+ ميعاد</button>
     </div>
     ${clientEvents.length ? clientEvents.map(e => eventItemHTML(e, 'client', id)).join('') : none('لا مواعيد مسجلة لهذا الموكل')}
 
     ${clientBailiffsHTML(id, caseIds)}
 
-    <h4 style="margin-bottom:10px;font-size:15px;">التوكيلات</h4>
+    <h4 style="margin:16px 0 10px;font-size:15px;">التوكيلات</h4>
     ${(() => { const ps = DB.get('poas').filter(p => p.clientId === id); return ps.length ? ps.map(p => { const st = poaState(p); return `<div class="note-item"><strong>${esc(p.number)}</strong> — ${esc(p.type)} <span class="badge ${st.cls}">${st.label}</span></div>`; }).join('') : none('لا توكيلات'); })()}
 
     <h4 style="margin:16px 0 10px;font-size:15px;">الحسابات</h4>
@@ -2861,8 +2896,9 @@ function viewClient(id) {
 
     <h4 style="margin:16px 0 10px;font-size:15px;">الملاحظات (${notes.length})</h4>
     ${notes.length ? notes.map(n => `<div class="note-item"><div class="note-meta"><span>${esc(n.title) || 'ملاحظة'}</span><span>${formatDate(n.createdAt)}</span></div>${esc(n.content)}</div>`).join('') : none('لا ملاحظات')}
+    </div></div>
   `;
-  document.getElementById('clientDetailModal').classList.add('show');
+  showPage('client-detail');
   renderClientCases(id);
 }
 
@@ -2875,9 +2911,47 @@ const CASE_STAGES = {
   'إداري':  ['قيد الإعداد', 'رفع الدعوى', 'إعلان', 'تحضير (هيئة مفوضين)', 'تداول', 'حكم', 'طعن', 'تنفيذ', 'إغلاق'],
   'عمالي':  ['قيد الإعداد', 'لجنة / تسوية', 'رفع الدعوى', 'تداول', 'حكم', 'طعن', 'تنفيذ', 'إغلاق']
 };
-const CASE_DEGREES = ['أول درجة', 'استئناف', 'نقض', 'تنفيذ', 'نيابة / تحقيق'];
+const CASE_DEGREES = ['أول درجة', 'معارضة', 'استئناف', 'معارضة استئنافية', 'نقض', 'وقف تنفيذ', 'تنفيذ', 'نيابة / تحقيق', 'إداري / محضر'];
 const PARTY_ROLES = ['مدعي', 'مدعى عليه', 'متهم', 'مجني عليه', 'مدعٍ بالحق المدني', 'طالب', 'مطلوب ضده', 'متدخل', 'خصم'];
 const OPPOSING_ROLES = ['مدعى عليه', 'متهم', 'مطلوب ضده', 'خصم'];
+
+function caseNumberRowHTML(n = {}) {
+  const degOpts = CASE_DEGREES.map(d => `<option ${n.degree === d ? 'selected' : ''}>${d}</option>`).join('');
+  return `<div class="case-number-row" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+    <select class="cn-degree" style="flex:1 1 140px;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);">${degOpts}</select>
+    <input class="cn-number" type="text" placeholder="رقم القضية" value="${esc(n.number || '')}" style="flex:1 1 120px;min-width:100px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);" />
+    <input class="cn-court" type="text" placeholder="المحكمة (اختياري)" value="${esc(n.court || '')}" style="flex:1 1 120px;min-width:100px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);" />
+    <input class="cn-date" type="date" value="${esc(n.fileDate || '')}" style="flex:0 0 140px;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);" title="تاريخ التسجيل" />
+    <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.case-number-row').remove()">حذف</button>
+  </div>`;
+}
+function addCaseNumberRow(n) {
+  document.getElementById('caseNumbersList').insertAdjacentHTML('beforeend', caseNumberRowHTML(n || {}));
+}
+function collectCaseNumbers() {
+  return [...document.querySelectorAll('#caseNumbersList .case-number-row')].map(r => ({
+    degree: r.querySelector('.cn-degree')?.value || '',
+    number: (r.querySelector('.cn-number')?.value || '').trim(),
+    court: (r.querySelector('.cn-court')?.value || '').trim(),
+    fileDate: r.querySelector('.cn-date')?.value || ''
+  })).filter(x => x.number || x.degree);
+}
+function formatCaseNumbersDisplay(c) {
+  const nums = (c.numbers && c.numbers.length) ? c.numbers : (c.number ? [{ degree: c.degree || 'أول درجة', number: c.number }] : []);
+  if (!nums.length) return 'لم يصدر رقم بعد';
+  return nums.map(n => {
+    const label = n.degree ? ` (${n.degree})` : '';
+    return (n.number || '—') + label;
+  }).join(' ← ');
+}
+function primaryCaseNumber(c) {
+  if (c.numbers && c.numbers.length) {
+    const withNum = c.numbers.filter(n => n.number);
+    if (withNum.length) return withNum[withNum.length - 1];
+    return c.numbers[c.numbers.length - 1];
+  }
+  return { number: c.number || '', degree: c.degree || 'أول درجة' };
+}
 
 function fillStageOptions(selected) {
   const type = document.getElementById('caseType').value;
@@ -3070,6 +3144,13 @@ function openCaseModal(id = null, opts = {}) {
       parties.forEach(p => addPartyRow(p));
       if (!parties.length) addPartyRow({ role: 'مدعى عليه' });
       fillPoaOptions(c.poaId || '');
+      // أرقام الدرجات
+      const numsList = document.getElementById('caseNumbersList');
+      numsList.innerHTML = '';
+      const nums = (c.numbers && c.numbers.length) ? c.numbers
+        : (c.number ? [{ degree: c.degree || 'أول درجة', number: c.number, court: c.court || '', fileDate: c.fileDate || '' }] : []);
+      if (nums.length) nums.forEach(n => addCaseNumberRow(n));
+      else addCaseNumberRow({ degree: c.degree || 'أول درجة' });
     }
   } else {
     ['caseNumber','caseSubject','caseCourt','caseCircuit','caseFileDate','caseNotes','caseLawyer'].forEach(i => document.getElementById(i).value = '');
@@ -3083,12 +3164,14 @@ function openCaseModal(id = null, opts = {}) {
     addPartyRow({ role: 'مدعي', name: cl ? cl.name : '' });
     addPartyRow({ role: 'مدعى عليه' });
     fillPoaOptions('');
+    document.getElementById('caseNumbersList').innerHTML = '';
+    addCaseNumberRow({ degree: 'أول درجة' });
   }
   document.getElementById('caseModal').classList.add('show');
 }
 
 function saveCase() {
-  const number = document.getElementById('caseNumber').value.trim();
+  const numberField = document.getElementById('caseNumber').value.trim();
   const subject = document.getElementById('caseSubject').value.trim();
   const clientId = document.getElementById('caseClient').value;
   if (!subject) return alert('موضوع القضية مطلوب');
@@ -3096,10 +3179,21 @@ function saveCase() {
   const id = document.getElementById('caseId').value;
   let list = DB.get('cases');
   const parties = collectParties();
+  const numbers = collectCaseNumbers();
+  // مزامنة الرقم والدرجة الرئيسيين من آخر رقم مُدخل أو من الحقل العلوي
+  let primaryNum = numberField;
+  let primaryDeg = document.getElementById('caseDegree').value;
+  if (numbers.length) {
+    const lastWithNum = [...numbers].reverse().find(n => n.number) || numbers[numbers.length - 1];
+    if (lastWithNum.number) primaryNum = lastWithNum.number;
+    if (lastWithNum.degree) primaryDeg = lastWithNum.degree;
+  } else if (numberField) {
+    numbers.push({ degree: primaryDeg, number: numberField, court: document.getElementById('caseCourt').value.trim(), fileDate: document.getElementById('caseFileDate').value });
+  }
   const data = {
     id: id || DB.uid(),
-    number: number || '', subject, clientId,
-    numberPending: !number,
+    number: primaryNum || '', subject, clientId,
+    numberPending: !primaryNum,
     court: document.getElementById('caseCourt').value.trim(),
     circuit: document.getElementById('caseCircuit').value.trim(),
     type: document.getElementById('caseType').value,
@@ -3107,8 +3201,9 @@ function saveCase() {
     fileDate: document.getElementById('caseFileDate').value,
     lawyer: document.getElementById('caseLawyer').value.trim(),
     poaId: document.getElementById('casePoa').value || '',
-    degree: document.getElementById('caseDegree').value,
+    degree: primaryDeg,
     stage: document.getElementById('caseStage').value,
+    numbers,
     parties,
     opponent: opponentsText({ parties }),
     notes: document.getElementById('caseNotes').value.trim(),
@@ -3161,7 +3256,7 @@ function viewCase(id) {
 
   document.getElementById('caseDetailBody').innerHTML = `
     <div class="detail-grid" style="margin-bottom:20px;">
-      <div class="detail-item"><label>رقم القضية</label><div class="val">${esc(c.number)}</div></div>
+      <div class="detail-item"><label>رقم القضية (الحالي)</label><div class="val">${esc(c.number) || '—'}</div></div>
       <div class="detail-item"><label>الحالة</label><div class="val"><span class="badge ${statusBadge(c.status)}">${esc(c.status)}</span></div></div>
       <div class="detail-item"><label>الموضوع</label><div class="val">${esc(c.subject)}</div></div>
       <div class="detail-item"><label>الموكل</label><div class="val">${client ? esc(client.name) : '—'}</div></div>
@@ -3169,7 +3264,12 @@ function viewCase(id) {
       <div class="detail-item"><label>الدائرة</label><div class="val">${esc(c.circuit) || '—'}</div></div>
       <div class="detail-item"><label>النوع</label><div class="val">${esc(c.type)}</div></div>
       <div class="detail-item"><label>المرحلة الإجرائية</label><div class="val">${esc(c.stage) || '—'}</div></div>
-      <div class="detail-item"><label>درجة التقاضي</label><div class="val">${esc(c.degree) || '—'}</div></div>
+      <div class="detail-item"><label>درجة التقاضي الحالية</label><div class="val">${esc(c.degree) || '—'}</div></div>
+      <div class="detail-item" style="grid-column:1/-1;"><label>أرقام القضية عبر الدرجات</label><div class="val" style="font-weight:400;line-height:1.9;">${
+        (c.numbers && c.numbers.length)
+          ? c.numbers.map(n => `<span class="badge badge-blue">${esc(n.degree || '—')}</span> <strong>${esc(n.number || '—')}</strong>${n.court ? ' — ' + esc(n.court) : ''}${n.fileDate ? ' <small style="color:var(--text-muted)">(' + esc(n.fileDate) + ')</small>' : ''}`).join('<br>')
+          : (c.number ? `<span class="badge badge-blue">${esc(c.degree || 'أول درجة')}</span> <strong>${esc(c.number)}</strong>` : '—')
+      }</div></div>
       <div class="detail-item"><label>المحامي المسؤول</label><div class="val">${esc(c.lawyer) || '—'}</div></div>
       <div class="detail-item"><label>التوكيل</label><div class="val">${(() => { const p = DB.get('poas').find(x => x.id === c.poaId); if (!p) return '—'; const st = poaState(p); return esc(p.number) + ' <span class="badge ' + st.cls + '">' + st.label + '</span>'; })()}</div></div>
       <div class="detail-item"><label>الأطراف</label><div class="val" style="font-weight:400;">${
@@ -3230,10 +3330,11 @@ function caseRowHTML(c, clients, ctx) {
   const client = (clients || DB.get('clients')).find(x => x.id === c.clientId);
   const si = caseSessionInfo(c.id);
   const inClient = ctx && ctx.clientId;
-  const pre = inClient ? "closeModal('clientDetailModal');" : '';
+  const pre = '';
+  const numDisp = formatCaseNumbersDisplay(c);
   return `<tr class="${c.status === 'منتهية' ? 'dq-row-ended' : ''}">
-      <td><strong style="cursor:pointer;color:var(--accent);" onclick="${pre}viewCase('${c.id}')">${esc(c.number || 'لم يصدر رقم بعد')}</strong></td>
-      <td><strong>${esc(c.subject)}</strong><span class="case-submeta">${(c.parties || []).length ? esc((c.parties || []).map(p => (p.role ? p.role + ': ' : '') + (p.name || '')).filter(Boolean).join('، ')) : esc(c.opponent || 'أطراف القضية غير مسجلة')}${si.last && si.last.prep ? ' · آخر طلبات/تحضير: ' + esc(si.last.prep) : ''}</span></td>
+      <td><strong style="cursor:pointer;color:var(--accent);" onclick="${pre}viewCase('${c.id}')">${esc(c.number || 'لم يصدر رقم بعد')}</strong>${(c.numbers && c.numbers.length > 1) ? `<span class="case-submeta">${esc(numDisp)}</span>` : (c.degree ? `<span class="case-submeta">${esc(c.degree)}</span>` : '')}</td>
+      <td><strong>${esc(c.subject)}</strong>${si.last && si.last.prep ? `<span class="case-submeta">آخر طلبات/تحضير: ${esc(si.last.prep)}</span>` : ''}</td>
       <td>${client ? `<strong>${esc(client.name)}</strong><span class="case-submeta">ملف الموكل</span>` : '<span class="case-submeta">قضية مستقلة</span>'}</td>
       <td>${esc(opponentsText(c)) || '—'}</td>
       <td>${esc(c.court)}</td>
@@ -3266,7 +3367,7 @@ function clientCasesSectionHTML(clientId) {
         <option value="">كل الحالات</option><option value="نشطة">نشطة</option><option value="معلقة">معلقة</option><option value="منتهية">منتهية</option><option value="محفوظة">محفوظة</option></select>
       <select class="filter-select" id="clientCaseTypeFilter" onchange="renderClientCases('${clientId}')">
         <option value="">كل الأنواع</option><option>مدني</option><option>جنائي</option><option>أسرة</option><option>تجاري</option><option>إداري</option><option>عمالي</option></select>
-      <button class="btn btn-primary" onclick="closeModal('clientDetailModal');showPage('cases');openCaseModal(null,{clientId:'${clientId}'})">+ إضافة قضية</button>
+      <button class="btn btn-primary" onclick="showPage('cases');openCaseModal(null,{clientId:'${clientId}'})">+ إضافة قضية</button>
       <button class="btn btn-outline" onclick="printClientCasesReport('${clientId}','full')">🖨️ طباعة كل القضايا</button>
       <button class="btn btn-outline" onclick="printClientCasesReport('${clientId}','latest')">طباعة آخر المستجدات</button>
     </div>
@@ -3287,7 +3388,8 @@ function renderClientCases(clientId) {
   if (q) list = list.filter(c =>
     (c.number || '').toLowerCase().includes(q) || (c.subject || '').toLowerCase().includes(q) ||
     (c.court || '').toLowerCase().includes(q) || opponentsText(c).toLowerCase().includes(q) ||
-    (c.parties || []).some(p => (p.name || '').toLowerCase().includes(q)));
+    (c.parties || []).some(p => (p.name || '').toLowerCase().includes(q)) ||
+    (c.numbers || []).some(n => (n.number || '').toLowerCase().includes(q) || (n.degree || '').toLowerCase().includes(q)));
   if (statusF) list = list.filter(c => c.status === statusF);
   if (typeF) list = list.filter(c => c.type === typeF);
   list = sortCasesByNearest(list, dqNextDates());
@@ -3342,7 +3444,8 @@ function renderCases() {
     (c.subject || '').toLowerCase().includes(q) ||
     (c.court || '').toLowerCase().includes(q) ||
     opponentsText(c).toLowerCase().includes(q) ||
-    (c.parties || []).some(p => (p.name || '').toLowerCase().includes(q))
+    (c.parties || []).some(p => (p.name || '').toLowerCase().includes(q)) ||
+    (c.numbers || []).some(n => (n.number || '').toLowerCase().includes(q) || (n.degree || '').toLowerCase().includes(q))
   );
   if (statusF) list = list.filter(c => c.status === statusF);
   if (typeF) list = list.filter(c => c.type === typeF);
@@ -4630,7 +4733,7 @@ function eventItemHTML(e, kind, ownerId) {
     <div style="min-width:0;overflow-wrap:anywhere"><span class="badge badge-purple">${esc(e.type || 'موعد')}</span>
       <strong>${esc(e.date || '')}</strong>${e.time ? ' · ' + esc(e.time) : ''}${e.date === today ? ' <span class="badge badge-yellow">اليوم</span>' : ''}
       <div style="font-size:13px;margin-top:3px">${esc(e.desc || '')}${kind === 'client' && k ? ` <span class="case-submeta" style="display:inline">· قضية ${esc(k.number || 'لم يصدر رقم بعد')}</span>` : ''}</div></div>
-    <div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="closeModal('${kind === 'client' ? 'clientDetailModal' : 'caseDetailModal'}');openEventModal('${e.id}',{returnTo:'${kind}',ownerId:'${ownerId}'})">تعديل</button>
+    <div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="${kind === 'client' ? '' : "closeModal('caseDetailModal');"}openEventModal('${e.id}',{returnTo:'${kind}',ownerId:'${ownerId}'})">تعديل</button>
       <button class="btn btn-danger btn-sm" onclick="dqDeleteEventFrom('${e.id}','${kind}','${ownerId}')">حذف</button></div>
   </div>`;
 }
@@ -6996,7 +7099,7 @@ function dqRefreshBailiffViews(kind, ownerId, auto) {
 }
 function bailiffDo(action, id, kind, ownerId) {
   if (action === 'edit') {
-    if (kind === 'case') closeModal('caseDetailModal'); else if (kind === 'client') closeModal('clientDetailModal');
+    if (kind === 'case') closeModal('caseDetailModal');
     return openBailiffModal(id, kind ? { returnTo: kind, ownerId } : {});
   }
   if (action === 'task') bailiffToTask(id);
@@ -7027,7 +7130,7 @@ function clientBailiffsHTML(clientId, caseIds) {
   const list = DB.get('bailiffs').filter(b => b.caseId ? caseIds.includes(b.caseId) : b.clientId === clientId).sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
   return `<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px;flex-wrap:wrap;gap:8px;">
       <h4 style="font-size:15px;">📨 أرقام المحضرين (${list.length})</h4>
-      <button class="btn btn-primary btn-sm" onclick="closeModal('clientDetailModal');openBailiffModal(null,{clientId:'${clientId}',returnTo:'client',ownerId:'${clientId}'})">+ رقم محضرين</button></div>
+      <button class="btn btn-primary btn-sm" onclick="openBailiffModal(null,{clientId:'${clientId}',returnTo:'client',ownerId:'${clientId}'})">+ رقم محضرين</button></div>
     ${list.length ? list.map(b => bailiffItemHTML(b, 'client', clientId)).join('') : '<p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">لا أرقام محضرين</p>'}`;
 }
 function renderBailiffs() {
