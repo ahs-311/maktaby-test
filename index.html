@@ -6670,7 +6670,7 @@ function dqEnterApp(){
   if (typeof dqOriginalShowPage === 'function') dqOriginalShowPage('dashboard');
 }
 function dqLogout(){dqCurrentAccount=null;document.getElementById('dqCurrentUser').style.display='none';document.getElementById('dqLogoutBtn').style.display='none';dqInitAuth()}
-function dqHasPerm(module){if(module==='defenses'||module==='toolkit')module='lawsuits';if(!dqCurrentAccount)return false;if(dqCurrentAccount.role==='owner')return true;const p=dqCurrentAccount.permissions;if(!Array.isArray(p))return false;if(module==='bailiffs'&&p.includes('tasks')&&dqCurrentAccount.role!=='client')return true;return p.includes(module)}
+function dqHasPerm(module){if(module==='defenses'||module==='toolkit')module='lawsuits';if(module==='client-detail')module='clients';if(!dqCurrentAccount)return false;if(dqCurrentAccount.role==='owner')return true;const p=dqCurrentAccount.permissions;if(!Array.isArray(p))return false;if(module==='bailiffs'&&p.includes('tasks')&&dqCurrentAccount.role!=='client')return true;return p.includes(module)}
 function dqApplyReadOnlyPolicy(){
   // Hide account controls from non-management roles. Module permissions govern navigation;
   // local HTML cannot provide tamper-proof authorization against a device owner.
