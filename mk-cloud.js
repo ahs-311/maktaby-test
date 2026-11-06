@@ -39,25 +39,48 @@
     x = x || {};
     return { email: (x.contactEmail || x.email || '').trim().toLowerCase(), phone: normPhone(x.contactPhone || x.phone || '') };
   }
-  /** يبحث عن اسم الدخول من يوزرنيم أو بريد أو هاتف (أوفلاين أولاً ثم قائمة الحسابات إن وُجدت) */
+  /** يبحث عن اسم الدخول من: رقم تعريفي / بريد / هاتف / يوزرنيم — الموكل: الرقم التعريفي فقط */
   function resolveUsername(identifier) {
     const raw = String(identifier || '').trim().toLowerCase();
+    const rawUp = String(identifier || '').trim().toUpperCase();
     if (!raw) return null;
     const all = LS.get('mk_offline_auth', {});
     if (all[raw]) return raw;
     const phoneQ = normPhone(identifier);
+    // بحث بالرقم التعريفي في الحسابات المحلية أولًا
+    try {
+      if (typeof dqEnsureAccountCodes === 'function') dqEnsureAccountCodes();
+      const accts = (typeof dqAccounts === 'function' ? dqAccounts() : []) || [];
+      const byCode = accts.find(a => a.active !== false && String(a.accountCode || '').toUpperCase() === rawUp);
+      if (byCode) {
+        // الموكل يُسمح له فقط بالرقم التعريفي (وقد وصلنا عبره)
+        return (byCode.username || '').toLowerCase();
+      }
+      // رفض دخول الموكل بالهاتف/البريد/اليوزرنيم
+      const clientHit = accts.find(a => {
+        if (a.active === false || a.role !== 'client') return false;
+        const em = (a.contactEmail || '').toLowerCase();
+        const ph = normPhone(a.contactPhone || '');
+        return (a.username || '').toLowerCase() === raw || em === raw || (ph && (ph === phoneQ || ph.endsWith(phoneQ.slice(-10))));
+      });
+      if (clientHit) return null; // موكل بدون رقم تعريفي → لا دخول
+    } catch (e) { }
     for (const [u, rec] of Object.entries(all)) {
       const p = rec.profile || {};
+      if (p.role === 'client') continue; // الموكل من الأوفلاين أيضًا بالرقم التعريفي فقط عبر dqAccounts
       const c = contactFromExtra(p.extra);
       if ((p.username || u).toLowerCase() === raw) return u;
       if (c.email && c.email === raw) return u;
       if (c.phone && (c.phone === phoneQ || c.phone.endsWith(phoneQ.slice(-10)))) return u;
       if (rec.contactEmail && rec.contactEmail.toLowerCase() === raw) return u;
       if (rec.contactPhone && (normPhone(rec.contactPhone) === phoneQ || normPhone(rec.contactPhone).endsWith(phoneQ.slice(-10)))) return u;
+      if (rec.accountCode && String(rec.accountCode).toUpperCase() === rawUp) return u;
+      if (p.accountCode && String(p.accountCode).toUpperCase() === rawUp) return u;
     }
     try {
       const accts = (typeof dqAccounts === 'function' ? dqAccounts() : []) || [];
       const hit = accts.find(a => {
+        if (a.active === false || a.role === 'client') return false;
         const em = (a.contactEmail || a.email || '').toLowerCase();
         const ph = normPhone(a.contactPhone || a.phone || '');
         return (a.username || '').toLowerCase() === raw || em === raw || (ph && (ph === phoneQ || ph.endsWith(phoneQ.slice(-10))));
@@ -238,9 +261,10 @@
     const all = LS.get('mk_offline_auth', {});
     const salt = b64e(crypto.getRandomValues(new Uint8Array(16))), iter = 150000;
     const c = contacts || contactFromExtra((prof && prof.extra) || {});
+    const accountCode = (contacts && contacts.accountCode) || (prof && prof.extra && prof.extra.accountCode) || (prof && prof.accountCode) || '';
     all[username] = { salt, iter, hash: await derive(password, salt, iter), profile: prof,
       office: off ? { id: off.id, name: off.name } : null, savedAt: Date.now(),
-      contactEmail: c.email || '', contactPhone: c.phone || '' };
+      contactEmail: c.email || '', contactPhone: c.phone || '', accountCode: accountCode || '' };
     LS.set('mk_offline_auth', all);
   }
   function removeOffline(username) { const a = LS.get('mk_offline_auth', {}); delete a[username]; LS.set('mk_offline_auth', a); }
@@ -250,7 +274,10 @@
   function toAccount(p) {
     const x = p.extra || {};
     const c = contactFromExtra(x);
+    let accountCode = x.accountCode || '';
+    if (!accountCode && typeof dqNextAccountCode === 'function') accountCode = dqNextAccountCode();
     return { id: p.user_id, name: p.full_name, username: p.username, role: p.role,
+      accountCode,
       permissions: p.role === 'owner' ? DQ_MODULES.map(m => m[0]) : (Array.isArray(p.permissions) ? p.permissions : []),
       clientId: p.client_id || null, active: p.active !== false, officeId: p.office_id || null,
       regNo: x.regNo || '', nationalId: x.nationalId || '', regGrade: x.regGrade || '',
@@ -524,8 +551,8 @@
         link('forgot', 'إعادة إرسال الكود') + link('login', 'العودة لتسجيل الدخول'), 'حفظ كلمة المرور');
       $('dqAuthForm').dataset.mode = 'mk-reset';
     } else {
-      dqSetGate('تسجيل الدخول', 'ادخل بالبريد أو رقم الهاتف أو اسم الدخول، مع كلمة المرور. يعمل بدون إنترنت على الأجهزة التي سجّلت منها سابقًا.',
-        F('dqAuthUsername', 'البريد أو الهاتف أو اسم الدخول', 'required dir="ltr" autocapitalize="none" autocomplete="username"') +
+      dqSetGate('تسجيل الدخول', 'الموظفون: بريد أو هاتف أو الرقم التعريفي. الموكل: الرقم التعريفي فقط. يعمل بدون إنترنت على الأجهزة التي سجّلت منها سابقًا.',
+        F('dqAuthUsername', 'البريد / الهاتف / الرقم التعريفي', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="بريد أو هاتف أو AC…"') +
         F('dqAuthPassword', 'كلمة المرور', 'type="password" required autocomplete="current-password"') +
         link('forgot', 'نسيت كلمة المرور؟') +
         link('register', 'إنشاء مكتب جديد (مدير مكتب)'), 'دخول');
@@ -799,6 +826,12 @@
     }
     let contactEmail = g('dqAccEmail').trim().toLowerCase();
     let contactPhone = normPhone(g('dqAccPhone').trim());
+    let accountCode = '';
+    if (id) {
+      const prev = dqAccounts().find(x => x.id === id);
+      accountCode = (prev && prev.accountCode) || '';
+    }
+    if (!accountCode && typeof dqNextAccountCode === 'function') accountCode = dqNextAccountCode();
     if (role === 'client') {
       const cl = DB.get('clients').find(x => x.id === clientId);
       if (!cl) return alert('سجل الموكل غير موجود.');
@@ -806,13 +839,15 @@
         cl.code = mkNextClientCode();
         DB.set('clients', DB.get('clients').map(x => x.id === cl.id ? cl : x));
       }
-      if (!cl.phone) return alert('أضف رقم هاتف في ملف الموكل.');
-      username = arDigits(cl.phone).replace(/\D/g, '');
-      if (!validUser(username)) username = ('c' + username).slice(0, 30);
-      contactPhone = normPhone(cl.phone);
+      contactPhone = contactPhone || normPhone(cl.phone || '');
       contactEmail = contactEmail || (cl.email || '').trim().toLowerCase();
-      if (!id) password = String(cl.code || '');
-      if (!id && password.length < 4) return alert('الرقم التعريفي غير صالح.');
+      // اسم الدخول الداخلي فريد؛ الدخول الفعلي للموكل بالرقم التعريفي فقط
+      if (!id) {
+        username = ('c' + arDigits(cl.phone || cl.code || '').replace(/\D/g, '').slice(-12) || ('c' + Date.now().toString(36))).toLowerCase().slice(0, 30);
+        if (!validUser(username)) username = ('c' + Date.now().toString(36)).slice(0, 30);
+        if (!password) password = String(cl.code || accountCode);
+      }
+      if (!id && password.length < 4) return alert('كلمة مرور الموكل غير صالحة.');
     } else {
       if (!username) return alert('أدخل اسم الدخول.');
       if (!validUser(username)) return alert('اسم الدخول: حروف إنجليزية صغيرة وأرقام ونقطة وشرطة فقط (من 3 إلى 30).');
@@ -831,7 +866,7 @@
     }
     const extra = Object.assign(
       role === 'lawyer' ? { regNo: g('dqLawNo').trim(), nationalId: nid, regGrade: g('dqLawGrade') } : {},
-      { contactEmail, contactPhone }
+      { contactEmail, contactPhone, accountCode }
     );
     try {
       let newId = id;
@@ -1173,8 +1208,33 @@
         rest('/rest/v1/announcements?select=*&order=created_at.desc&limit=50').catch(() => []),
         rest('/rest/v1/policy_acceptances?select=id,office_id,doc_version,accepted_at,ip&order=accepted_at.desc').catch(() => null)]);   // null = لم يُنفَّذ migration-07
       ownerOffices = offs;
-      // ---- نموذج التنبيه ----
-      const box = el('div'); box.append(el('h3', '📣 إرسال تنبيه للمديرين', 'margin-bottom:6px'),
+      const box = el('div');
+      // ---- صندوق طلبات الباقات/المساحة ----
+      box.append(el('h3', '📥 طلبات الباقات والمساحة', 'margin-bottom:6px'),
+        el('p', 'الطلبات الواردة من المكاتب. وافق أو ارفض من «تعيين الباقة». الإشعار للمكتب داخل التطبيق فقط.', 'font-size:13px;opacity:.75;margin-bottom:8px'));
+      let inbox = [];
+      try { inbox = JSON.parse(localStorage.getItem('mk_owner_inbox') || '[]'); } catch (_) { }
+      if (!inbox.length) box.append(el('p', 'لا طلبات واردة على هذا الجهاز حاليًا.', 'opacity:.7;margin-bottom:12px'));
+      else {
+        inbox.slice(0, 20).forEach(r => {
+          const row = el('div', null, 'border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px');
+          const planName = (typeof MK_OFFICE_PLANS !== 'undefined' && r.planId && MK_OFFICE_PLANS[r.planId]) ? MK_OFFICE_PLANS[r.planId].name : (r.planId || '—');
+          const detail = r.type === 'custom'
+            ? ('مساحة مخصصة: مستندات ' + (r.customFilesMB || 0) + ' / بيانات ' + (r.customDbMB || 0) + ' ميجا')
+            : ('باقة: ' + planName);
+          row.append(el('div', (r.status === 'pending' ? '⏳ ' : r.status === 'approved' ? '✅ ' : '❌ ') + (r.officeName || 'مكتب'), 'font-weight:700'),
+            el('div', detail),
+            el('div', (r.note ? r.note + ' · ' : '') + new Date(r.at).toLocaleString('ar-EG'), 'opacity:.7;font-size:12px'));
+          if (r.officeId) row.append(obtn('تعيين الباقة', () => mkSetOfficePlan(r.officeId), 'btn-primary'));
+          box.append(row);
+        });
+        box.append(obtn('مسح صندوق الطلبات', () => {
+          if (!confirm('مسح الطلبات المحفوظة على هذا الجهاز؟')) return;
+          localStorage.setItem('mk_owner_inbox', '[]'); renderOwner();
+        }));
+      }
+      box.append(el('hr', null, 'margin:16px 0;opacity:.3'));
+      box.append(el('h3', '📣 إرسال تنبيه للمديرين', 'margin-bottom:6px'),
         el('p', 'يظهر التنبيه في حساب المدير حتى تحذفه أنت.', 'font-size:13px;opacity:.75;margin-bottom:8px'));
       const t = inp('text', 'عنوان التنبيه'), b = el('textarea'); b.rows = 3; b.placeholder = 'نص التنبيه'; b.style.width = '100%';
       const sv = sel([['info', 'معلومة'], ['warning', 'تحذير'], ['urgent', 'عاجل']]);
@@ -1263,7 +1323,7 @@
     const addons = (typeof MK_STORAGE_ADDONS !== 'undefined' ? Object.values(MK_STORAGE_ADDONS) : []);
     const planSel = sel(plans.map(p => [p.id, p.name]));
     const body = el('div');
-    body.append(el('p', 'عند الموافقة تُرسل للمكتب إشعار فوري وتُحدَّث باقته. إن لم يدفع ارفض الطلب ببساطة.', 'font-size:13px;opacity:.8;margin-bottom:8px'));
+    body.append(el('p', 'عدّل الباقة أو المساحة ثم وافق أو ارفض. يُرسل إشعار داخل التطبيق للمكتب فورًا (ليس واتساب).', 'font-size:13px;opacity:.8;margin-bottom:8px'));
     body.append(fld('الباقة', planSel));
     const addBox = el('div');
     addons.forEach(a => {
@@ -1273,26 +1333,51 @@
       addBox.append(lab);
     });
     body.append(fld('إضافات المساحة', addBox));
-    const decision = sel([['approve', 'موافقة وتفعيل'], ['reject', 'رفض الطلب']]);
+    const customFiles = inp('number', 'ميجا مستندات مخصصة (اختياري)');
+    const customDb = inp('number', 'ميجا بيانات مخصصة (اختياري)');
+    body.append(fld('مساحة مستندات مخصصة', customFiles), fld('مساحة بيانات مخصصة', customDb));
+    const decision = sel([['approve', 'موافقة وتفعيل'], ['reject', 'رفض الطلب'], ['update', 'تعديل مباشر بدون طلب']]);
     const note = inp('text', 'ملاحظة للمكتب');
     body.append(fld('القرار', decision), fld('ملاحظة', note));
-    mkModal('تعيين باقة: ' + o.name, body, 'تنفيذ وإشعار المكتب', async () => {
+    mkModal('تعيين باقة / مساحة: ' + o.name, body, 'تنفيذ وإشعار المكتب', async () => {
       const addonIds = [...addBox.querySelectorAll('input:checked')].map(c => c.value);
-      const approved = decision.value === 'approve';
+      const approved = decision.value !== 'reject';
       const planName = (plans.find(p => p.id === planSel.value) || {}).name || planSel.value;
-      const marker = '[[MK_PLAN_DECISION]]' + JSON.stringify({ planId: planSel.value, addonIds, approved, at: new Date().toISOString() });
-      const title = approved ? ('موافقة: تفعيل باقة «' + planName + '»') : ('رفض طلب تعديل الباقة');
-      const text = (approved
-        ? ('تمت الموافقة على باقة «' + planName + '»' + (addonIds.length ? ' مع إضافات المساحة.' : '.') + '\nستُحدَّث إعدادات مكتبك تلقائيًا.')
-        : ('تم رفض طلب تعديل الباقة/المساحة.' + (note.value ? '\nالسبب: ' + note.value : '\nتواصل مع المالك بعد السداد.')))
-        + '\n\n' + marker;
+      const cFiles = parseInt(customFiles.value, 10) || 0;
+      const cDb = parseInt(customDb.value, 10) || 0;
+      const payload = {
+        planId: planSel.value, addonIds, approved,
+        customFilesMB: cFiles, customDbMB: cDb,
+        at: new Date().toISOString()
+      };
+      const marker = '[[MK_PLAN_DECISION]]' + JSON.stringify(payload);
+      let title, text;
+      if (!approved) {
+        title = 'رفض طلب تعديل الباقة/المساحة';
+        text = 'تم رفض طلب تعديل الباقة أو المساحة.' + (note.value ? '\nالسبب: ' + note.value : '') + '\n\n' + marker;
+      } else {
+        title = 'تحديث اشتراك مكتبك: «' + planName + '»';
+        text = 'قام المالك بتحديث باقة/مساحة مكتبك داخل التطبيق.\n'
+          + 'الباقة: ' + planName + '\n'
+          + (addonIds.length ? 'إضافات: ' + addonIds.join(', ') + '\n' : '')
+          + (cFiles || cDb ? ('مساحة مخصصة: مستندات ' + cFiles + ' ميجا / بيانات ' + cDb + ' ميجا\n') : '')
+          + (note.value ? 'ملاحظة: ' + note.value + '\n' : '')
+          + '\n' + marker;
+      }
       await rpc('create_announcement', {
         p_title: title,
         p_body: text,
         p_severity: approved ? 'info' : 'warning',
         p_target_office_id: id
       });
-      alert(approved ? 'تم التفعيل وإشعار المكتب.' : 'تم إرسال قرار الرفض للمكتب.');
+      // تحديث حالة الطلب في صندوق الوارد المحلي
+      try {
+        let inbox = JSON.parse(localStorage.getItem('mk_owner_inbox') || '[]');
+        inbox = inbox.map(r => (r.officeId === id || r.officeName === o.name) && r.status === 'pending'
+          ? Object.assign({}, r, { status: approved ? 'approved' : 'rejected' }) : r);
+        localStorage.setItem('mk_owner_inbox', JSON.stringify(inbox));
+      } catch (_) { }
+      alert(approved ? 'تم التحديث وإشعار المكتب داخل التطبيق.' : 'تم إرسال قرار الرفض للمكتب داخل التطبيق.');
       renderOwner();
     });
   }
