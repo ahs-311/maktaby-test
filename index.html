@@ -1352,7 +1352,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
             <table>
               <thead>
                 <tr>
-                  <th>الاسم</th><th>الهاتف</th><th>البريد</th><th>النوع</th><th>الحالة</th>
+                  <th>الرقم التعريفي</th><th>الاسم</th><th>الهاتف</th><th>البريد</th><th>النوع</th><th>الحالة</th>
                   <th>عدد القضايا</th><th>أقرب جلسة / موعد</th><th>تاريخ الإضافة</th><th>إجراءات</th>
                 </tr>
               </thead>
@@ -1917,6 +1917,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
 
     <!-- SETTINGS -->
     <div class="page" id="page-settings">
+      <div id="mkPlansHost"></div>
       <div class="two-col">
         <div class="card">
           <div class="card-header"><h2>maktaby+ — النسخ الاحتياطي واستيراد/تصدير البيانات</h2></div>
@@ -2800,6 +2801,7 @@ function saveClient() {
       if (!confirm('⚠️ تنبيه تعارض محتمل:\n' + msg + '\n\nهل تريد المتابعة بالحفظ؟')) return;
     }
   }
+  const prev = id ? list.find(c => c.id === id) : null;
   const data = {
     id: id || DB.uid(),
     name,
@@ -2810,7 +2812,8 @@ function saveClient() {
     status: document.getElementById('clientStatus').value,
     address: document.getElementById('clientAddress').value.trim(),
     notes: document.getElementById('clientNotes').value.trim(),
-    createdAt: id ? (list.find(c => c.id === id)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    code: (prev && prev.code) ? prev.code : mkNextClientCode(),
+    createdAt: id ? (prev?.createdAt || new Date().toISOString()) : new Date().toISOString()
   };
   list = id ? list.map(c => c.id === id ? data : c) : [data, ...list];
   DB.set('clients', list);
@@ -2856,8 +2859,17 @@ function renderClients() {
     return { c, cnt: cs.length, end: cs.length > 0 && cs.every(x => x.status === 'منتهية'), nx: dIdx.clientNext[c.id] || '' };
   });
   rowsInfo.sort((a, b) => (a.end - b.end) || ((a.nx ? 0 : 1) - (b.nx ? 0 : 1)) || (a.nx && b.nx ? a.nx.localeCompare(b.nx) : 0));
+  // تعبئة أرقام تعريفية للموكلين القدامى إن نقصت
+  try {
+    let changed = false;
+    const allC = DB.get('clients');
+    allC.forEach(cl => { if (!cl.code) { cl.code = mkNextClientCode(); changed = true; } });
+    if (changed) DB.set('clients', allC);
+  } catch (e) { }
   if (tbody) tbody.innerHTML = rowsInfo.map(({ c, cnt, end, nx }) => {
+    const code = c.code || '—';
     return `<tr class="${end ? 'dq-row-ended' : ''}">
+      <td><strong style="direction:ltr">${esc(code)}</strong></td>
       <td><strong style="cursor:pointer;color:var(--accent);" onclick="viewClient('${c.id}')">${esc(c.name)}</strong>${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</td>
       <td>${esc(c.phone)}</td>
       <td>${esc(c.email)}</td>
@@ -2868,6 +2880,7 @@ function renderClients() {
       <td>${formatDate(c.createdAt)}</td>
       <td class="actions-cell">
         <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
+        <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${c.id}')">واتساب الحساب</button>
         <button class="btn btn-outline btn-sm" onclick="printClientReport('${c.id}')">طباعة</button>
         <button class="btn btn-outline btn-sm" onclick="openClientModal('${c.id}')">تعديل</button>
         <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
@@ -2878,12 +2891,13 @@ function renderClients() {
     const nextTxt = end ? '—' : (nx ? esc(nx) + ' (' + dqRelDay(nx) + ')' : '—');
     return `<div class="mk-data-card ${end ? 'dq-row-ended' : ''}">
       <div class="mk-card-title" onclick="viewClient('${c.id}')">${esc(c.name)}${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</div>
+      <div class="mk-card-row"><span class="label">الرقم التعريفي:</span><strong style="direction:ltr">${esc(c.code || '—')}</strong></div>
       <div class="mk-card-row"><span class="label">الهاتف:</span>${esc(c.phone) || '—'} <span class="label">النوع:</span><span class="badge badge-blue">${esc(c.type)}</span> <span class="label">الحالة:</span><span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div>
       <div class="mk-card-row"><span class="label">القضايا:</span>${cnt} <span class="label">أقرب موعد:</span>${nextTxt} <span class="label">أُضيف:</span>${formatDate(c.createdAt)}</div>
       ${c.email ? `<div class="mk-card-row"><span class="label">البريد:</span>${esc(c.email)}</div>` : ''}
       <div class="mk-card-actions">
         <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
-        <button class="btn btn-outline btn-sm" onclick="printClientReport('${c.id}')">طباعة</button>
+        <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${c.id}')">واتساب الحساب</button>
         <button class="btn btn-outline btn-sm" onclick="openClientModal('${c.id}')">تعديل</button>
         <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
       </div>
@@ -2909,6 +2923,7 @@ function viewClient(id) {
     .sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || '')));
 
   // صفحة كاملة بدل النافذة المنبثقة
+  if (!c.code) { c.code = mkNextClientCode(); DB.set('clients', DB.get('clients').map(x => x.id === id ? c : x)); }
   document.getElementById('clientPageTitle').textContent = 'ملف الموكل: ' + c.name;
   document.getElementById('clientPageEditBtn').onclick = () => { openClientModal(id); };
   document.getElementById('clientPagePrintBtn').onclick = () => printClientReport(id);
@@ -2922,12 +2937,18 @@ function viewClient(id) {
   document.getElementById('clientPageBody').innerHTML = `
     <div class="card" style="margin-bottom:16px;"><div class="card-body">
     <div class="detail-grid" style="margin-bottom:12px;">
+      <div class="detail-item"><label>الرقم التعريفي</label><div class="val" style="direction:ltr;font-weight:700">${esc(c.code)}</div></div>
       <div class="detail-item"><label>الحالة</label><div class="val"><span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div></div>
       <div class="detail-item"><label>النوع</label><div class="val">${esc(c.type)}</div></div>
-      <div class="detail-item"><label>الهاتف</label><div class="val">${esc(c.phone) || '—'}</div></div>
+      <div class="detail-item"><label>الهاتف (يوزر الحساب)</label><div class="val">${esc(c.phone) || '—'}</div></div>
       <div class="detail-item"><label>البريد</label><div class="val">${esc(c.email) || '—'}</div></div>
       <div class="detail-item"><label>الرقم القومي / السجل</label><div class="val">${esc(c.idNum) || '—'}</div></div>
       <div class="detail-item"><label>العنوان</label><div class="val">${esc(c.address) || '—'}</div></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+      <button class="btn btn-primary btn-sm" onclick="createClientAccountFromFile('${id}')">إنشاء / تجهيز حساب دخول للموكل</button>
+      <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${id}')">واتساب: إرسال بيانات الحساب</button>
+      <button class="btn btn-outline btn-sm" onclick="whatsappClient('${id}')">واتساب: تقرير القضايا</button>
     </div>
     ${c.notes ? `<p style="margin-bottom:0;font-size:14px;">${esc(c.notes)}</p>` : ''}
     </div></div>
@@ -3518,6 +3539,10 @@ function caseCardHTML(c, clients) {
 }
 function renderCases() {
   let list = DB.get('cases');
+  // حساب الموكل يرى قضاياه فقط
+  if (typeof dqCurrentAccount !== 'undefined' && dqCurrentAccount && dqCurrentAccount.role === 'client' && dqCurrentAccount.clientId) {
+    list = list.filter(c => c.clientId === dqCurrentAccount.clientId);
+  }
   const q = (document.getElementById('caseSearch')?.value || '').trim().toLowerCase();
   const statusF = document.getElementById('caseStatusFilter')?.value || '';
   const typeF = document.getElementById('caseTypeFilter')?.value || '';
@@ -4708,6 +4733,59 @@ function whatsappClient(clientId) {
   else if (num.startsWith('0')) num = '20' + num.slice(1);
   if (!num) { navigator.clipboard && navigator.clipboard.writeText(text); return alert('لا يوجد رقم هاتف لهذا الموكل. تم نسخ نص التقرير.'); }
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(text), '_blank');
+}
+/** رسالة واتساب لبيانات حساب الموكل (اليوزر = الهاتف، الباسورد = الرقم التعريفي) */
+function whatsappClientCredentials(clientId) {
+  const c = DB.get('clients').find(x => x.id === clientId);
+  if (!c) return;
+  if (!c.code) { c.code = mkNextClientCode(); const list = DB.get('clients').map(x => x.id === c.id ? c : x); DB.set('clients', list); }
+  if (!c.phone) return alert('أضف رقم هاتف للموكل أولاً (يُستخدم كاسم دخول).');
+  const office = (() => { try { return JSON.parse(localStorage.getItem('dq_office_profile') || '{}').name || 'المكتب'; } catch { return 'المكتب'; } })();
+  const text = [
+    'مرحباً ' + (c.name || '') + '،',
+    'بيانات دخولك لمتابعة قضاياك لدى «' + office + '»:',
+    '',
+    'اسم الدخول (اليوزر): ' + c.phone,
+    'كلمة المرور: ' + c.code,
+    'الرقم التعريفي: ' + c.code,
+    '',
+    'بعد الدخول يمكنك متابعة جلساتك وتفاصيل القضايا والجزء المالي حسب ما يتيحه المكتب.',
+    'لا تشارك بيانات الدخول مع أحد.'
+  ].join('\n');
+  let num = arDigits(c.phone || '').replace(/\D/g, '');
+  if (num.startsWith('00')) num = num.slice(2);
+  else if (num.startsWith('0')) num = '20' + num.slice(1);
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(text), '_blank');
+}
+function createClientAccountFromFile(clientId) {
+  const c = DB.get('clients').find(x => x.id === clientId);
+  if (!c) return;
+  if (!['owner', 'manager'].includes(dqCurrentAccount && dqCurrentAccount.role)) return alert('إنشاء حساب الموكل للمدير فقط.');
+  if (!c.phone) return alert('أضف رقم هاتف للموكل أولاً.');
+  if (!c.code) { c.code = mkNextClientCode(); DB.set('clients', DB.get('clients').map(x => x.id === c.id ? c : x)); }
+  // فتح نموذج الحسابات مع تعبئة تلقائية
+  showPage('accounts');
+  dqEditingAccountId = null;
+  setTimeout(() => {
+    renderDQAccounts();
+    const roleEl = document.getElementById('dqAccRole');
+    if (roleEl) {
+      // تأكد من وجود خيار موكل
+      if (![...roleEl.options].some(o => o.value === 'client')) {
+        roleEl.insertAdjacentHTML('beforeend', '<option value="client">موكل</option>');
+      }
+      roleEl.value = 'client';
+      if (typeof dqRenderPermEditor === 'function') dqRenderPermEditor(dqDefaultPerms('client'));
+      if (typeof dqRenderClientLink === 'function') dqRenderClientLink(clientId);
+    }
+    const n = document.getElementById('dqAccName'); if (n) n.value = c.name || '';
+    const u = document.getElementById('dqAccUsername'); if (u) { u.value = c.phone; u.readOnly = true; }
+    const p = document.getElementById('dqAccPassword'); if (p) p.value = c.code;
+    const em = document.getElementById('dqAccEmail'); if (em) em.value = c.email || '';
+    const ph = document.getElementById('dqAccPhone'); if (ph) ph.value = c.phone || '';
+    const cl = document.getElementById('dqAccClientId'); if (cl) cl.value = clientId;
+    toast('تم تعبئة بيانات حساب الموكل — راجع الصلاحيات ثم احفظ');
+  }, 100);
 }
 
 // ===================== GLOBAL SEARCH =====================
@@ -6690,7 +6768,159 @@ function dqDefaultPerms(role){
   if(role==='owner') return DQ_MODULES.map(x=>x[0]);
   if(role==='manager') return DQ_MODULES.map(x=>x[0]);
   if(role==='lawyer') return ['dashboard','clients','cases','courtday','agenda','calendar','tasks','bailiffs','poas','notes','documents','billing','deadlines','library','forms'];
-  return ['dashboard','cases','calendar','documents','notes','library'];
+  // موكل: عرض فقط — جلسات/قضايا/مالي — بلا مهام ولا مواعيد عامة ولا تعديل
+  if(role==='client') return ['dashboard','cases','courtday','billing'];
+  return ['dashboard','cases','courtday','billing'];
+}
+
+/* ===================== باقات المكاتب + الإضافات ===================== */
+const MK_OFFICE_PLANS = {
+  p1: { id:'p1', name:'مكتب صغير', people:'من فرد إلى 3', branches:1, maxLawyers:2, maxAccounts:2, dbMB:50, filesMB:250, desc:'حساب مدير + حتى 2 محامٍ — فرع واحد' },
+  p2: { id:'p2', name:'مكتب متوسط', people:'أكثر من 3 حتى 10 محامين', branches:1, maxLawyers:9, maxAccounts:9, dbMB:50, filesMB:450, desc:'حساب مدير + حتى 9 حسابات — فرع واحد' },
+  p3: { id:'p3', name:'مؤسسة', people:'حتى 20 محامي', branches:1, maxLawyers:20, maxAccounts:20, dbMB:100, filesMB:900, desc:'حساب مدير + حتى 20 حساب' }
+};
+const MK_STORAGE_ADDONS = {
+  a1: { id:'a1', name:'زيادة أساسية', filesMB:500, dbMB:100 },
+  a2: { id:'a2', name:'زيادة متوسطة', filesMB:750, dbMB:150 },
+  a3: { id:'a3', name:'زيادة كبيرة', filesMB:1024, dbMB:200 }
+};
+function mkGetOfficePlan(){
+  try{
+    const p=JSON.parse(localStorage.getItem('dq_office_profile')||'{}');
+    return MK_OFFICE_PLANS[p.planId]||MK_OFFICE_PLANS.p1;
+  }catch{return MK_OFFICE_PLANS.p1}
+}
+function mkGetAddons(){
+  try{
+    const p=JSON.parse(localStorage.getItem('dq_office_profile')||'{}');
+    return (p.addonIds||[]).map(id=>MK_STORAGE_ADDONS[id]).filter(Boolean);
+  }catch{return []}
+}
+function mkPlanLimits(){
+  const plan=mkGetOfficePlan();
+  const add=mkGetAddons();
+  return {
+    plan,
+    maxAccounts: plan.maxAccounts,
+    maxLawyers: plan.maxLawyers,
+    dbMB: plan.dbMB + add.reduce((s,a)=>s+a.dbMB,0),
+    filesMB: plan.filesMB + add.reduce((s,a)=>s+a.filesMB,0)
+  };
+}
+function mkCountLawyerAccounts(){
+  try{return (typeof dqAccounts==='function'?dqAccounts():[]).filter(a=>a.role==='lawyer'&&a.active!==false).length}catch{return 0}
+}
+function mkCanCreateLawyer(){
+  const lim=mkPlanLimits();
+  return mkCountLawyerAccounts()<lim.maxLawyers;
+}
+function mkSubDurationHTML(){
+  // تفاصيل مدة الاشتراك من حالة السحابة إن وُجدت
+  let st=null;try{st=JSON.parse(localStorage.getItem('mk_status')||'null')}catch{}
+  let det=null;try{det=JSON.parse(localStorage.getItem('mk_subdet')||'null')}catch{}
+  const trial=st&&st.trial_ends_at, paid=st&&st.paid_until;
+  const end=det&&det.ends_at?det.ends_at:(paid&&trial? (new Date(paid)>=new Date(trial)?paid:trial) : (paid||trial));
+  const state=det&&det.state?det.state:(st&&st.state);
+  const stateAr={trial:'فترة تجريبية',active:'نشط (مدفوع)',expiring:'ينتهي قريبًا',readonly:'منتهٍ — عرض فقط',suspended:'موقوف'}[state]||(state||'—');
+  const left=end?Math.ceil((Date.parse(end)-Date.now())/86400000):null;
+  const day=v=>v?new Date(v).toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'}):'—';
+  return `<div style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:14px;background:var(--bg)">
+    <strong>تفاصيل اشتراك مكتبك</strong>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:8px;font-size:13px">
+      <div>الحالة: <b>${esc(stateAr)}</b></div>
+      <div>نهاية الفترة: <b>${day(end)}</b></div>
+      <div>المتبقي: <b>${left==null?'—':(left>0?left+' يوم':'انتهت')}</b></div>
+      <div>تجريبي حتى: <b>${day(trial)}</b></div>
+      <div>مدفوع حتى: <b>${day(paid)}</b></div>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0">للتجديد: حوّل عبر فودافون كاش/فوري إلى 01098848735 ثم أبلغ المالك، أو أرسل طلب تعديل باقة بالأسفل.</p>
+  </div>`;
+}
+function mkPlansHTML(){
+  const cur=mkGetOfficePlan();
+  const addons=mkGetAddons();
+  const lim=mkPlanLimits();
+  const plans=Object.values(MK_OFFICE_PLANS).map(p=>`<div style="border:1px solid var(--border);border-radius:12px;padding:12px;${p.id===cur.id?'outline:2px solid var(--accent-gold, #c5a869)':''}">
+    <strong>${esc(p.name)}</strong> <span class="badge ${p.id===cur.id?'badge-green':'badge-blue'}">${p.id===cur.id?'الحالية':'باقة'}</span>
+    <div style="font-size:13px;margin-top:6px;line-height:1.8;color:var(--text-muted)">${esc(p.desc)}<br>
+    بيانات: <b>${p.dbMB}</b> ميجا · مستندات: <b>${p.filesMB}</b> ميجا · فروع: ${p.branches}</div>
+  </div>`).join('');
+  const addsActive=addons.map(a=>`<span class="badge badge-blue" style="margin:2px">${esc(a.name)} (+${a.filesMB}/${a.dbMB})</span>`).join(' ')||'<span style="color:var(--text-muted)">لا إضافات مفعّلة</span>';
+  const planOpts=Object.values(MK_OFFICE_PLANS).map(p=>`<option value="${p.id}" ${p.id===cur.id?'selected':''}>${esc(p.name)}</option>`).join('');
+  const addOpts=Object.values(MK_STORAGE_ADDONS).map(a=>`<label style="display:block;margin:4px 0"><input type="checkbox" class="mkReqAddon" value="${a.id}"/> ${esc(a.name)} (+${a.filesMB} مستندات / +${a.dbMB} بيانات)</label>`).join('');
+  let reqList='';try{const L=JSON.parse(localStorage.getItem('mk_plan_requests')||'[]');if(L.length)reqList='<ul style="margin:8px 0;padding-right:18px;font-size:13px">'+L.slice(0,5).map(r=>`<li>${r.status==='approved'?'✅':r.status==='rejected'?'❌':'⏳'} ${(MK_OFFICE_PLANS[r.planId]||{}).name||r.planId} — ${esc(new Date(r.at).toLocaleString('ar-EG'))}</li>`).join('')+'</ul>'}catch(e){}
+  return `<div class="card" style="margin-top:16px"><div class="card-header"><h2>اشتراك المكتب والباقات</h2></div><div class="card-body">
+    ${mkSubDurationHTML()}
+    <p style="font-size:13px;margin-bottom:10px">الباقة الحالية: <strong>${esc(cur.name)}</strong> — حد المحامين: ${lim.maxLawyers} · المساحة: بيانات <b>${lim.dbMB}</b> ميجا / مستندات <b>${lim.filesMB}</b> ميجا</p>
+    <div style="margin-bottom:10px;font-size:13px">الإضافات المفعّلة: ${addsActive}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:16px">${plans}</div>
+    <h4 style="margin:12px 0 8px;font-size:15px">طلب تعديل الباقة أو المساحة (موافقة المالك)</h4>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">لا تُفعَّل التغييرات إلا بعد موافقة المالك وسداد الرسوم. سيصلك إشعار عند الموافقة أو الرفض.</p>
+    <div class="form-group"><label>الباقة المطلوبة</label><select id="mkReqPlan" class="filter-select">${planOpts}</select></div>
+    <div class="form-group"><label>إضافات المساحة المطلوبة</label>${addOpts}</div>
+    <div class="form-group"><label>ملاحظة للمالك</label><textarea id="mkReqNote" rows="2" placeholder="مثال: تم التحويل يوم ..."></textarea></div>
+    <button class="btn btn-primary" type="button" onclick="mkSubmitPlanRequest()">إرسال الطلب للمالك</button>
+    ${reqList}
+  </div></div>`;
+}
+function mkApplyOwnerPlanDecision(payload){
+  // يُستدعى عند وصول إشعار موافقة من المالك
+  if(!payload||!payload.planId)return;
+  let p={};try{p=JSON.parse(localStorage.getItem('dq_office_profile')||'{}')}catch{}
+  p.planId=payload.planId;
+  if(Array.isArray(payload.addonIds))p.addonIds=payload.addonIds;
+  localStorage.setItem('dq_office_profile',JSON.stringify(p));
+  try{
+    let list=JSON.parse(localStorage.getItem('mk_plan_requests')||'[]');
+    list=list.map(r=>({...r,status:payload.approved===false?'rejected':'approved'}));
+    localStorage.setItem('mk_plan_requests',JSON.stringify(list));
+  }catch(e){}
+  toast(payload.approved===false?'تم رفض طلب تعديل الباقة':'تم تفعيل باقة المكتب الجديدة');
+}
+function mkRenderPlansCard(){
+  const host=document.getElementById('mkPlansHost');if(!host)return;
+  host.innerHTML=mkPlansHTML();
+}
+
+/* رقم تعريفي فريد عالميًا بين كل المكاتب */
+function mkNextClientCode(){
+  const used=new Set();
+  try{(DB.get('clients')||[]).forEach(c=>{if(c&&c.code)used.add(String(c.code).toUpperCase())})}catch(e){}
+  try{JSON.parse(localStorage.getItem('mk_global_client_codes')||'[]').forEach(c=>used.add(String(c).toUpperCase()))}catch(e){}
+  let code='',tries=0;
+  do{
+    const t=Date.now().toString(36).toUpperCase();
+    const r=Math.random().toString(36).slice(2,7).toUpperCase();
+    code=('MK'+t+r).slice(0,14);
+    tries++;
+  }while(used.has(code)&&tries<40);
+  try{
+    const g=JSON.parse(localStorage.getItem('mk_global_client_codes')||'[]');
+    g.push(code);
+    localStorage.setItem('mk_global_client_codes',JSON.stringify(g.slice(-8000)));
+  }catch(e){}
+  return code;
+}
+function mkEnsureClientCode(c){return c&&c.code?c.code:null}
+
+function mkSubmitPlanRequest(){
+  if(!['owner','manager'].includes(dqCurrentAccount&&dqCurrentAccount.role))return alert('للمدير فقط');
+  const planId=document.getElementById('mkReqPlan')?.value;
+  const addons=[...document.querySelectorAll('.mkReqAddon:checked')].map(c=>c.value);
+  const note=(document.getElementById('mkReqNote')?.value||'').trim();
+  let office={};try{office=JSON.parse(localStorage.getItem('dq_office_profile')||'{}')}catch{}
+  const officeName=office.name||'مكتب';
+  const req={id:DB.uid(),at:new Date().toISOString(),planId,addons,note,officeName,status:'pending',by:dqCurrentAccount.name};
+  let list=[];try{list=JSON.parse(localStorage.getItem('mk_plan_requests')||'[]')}catch{}
+  list.unshift(req);localStorage.setItem('mk_plan_requests',JSON.stringify(list.slice(0,50)));
+  try{const rows=DB.get('sub_requests')||[];rows.unshift(req);DB.set('sub_requests',rows.slice(0,50))}catch(e){}
+  const plan=MK_OFFICE_PLANS[planId]||{};
+  const addTxt=addons.map(id=>(MK_STORAGE_ADDONS[id]||{}).name).filter(Boolean).join('، ')||'بدون';
+  const msg=['طلب تعديل اشتراك — '+officeName,'الباقة: '+(plan.name||planId),'الإضافات: '+addTxt,note?('ملاحظة: '+note):'','معرّف الطلب: '+req.id].filter(Boolean).join('\n');
+  let n='01098848735'.replace(/\D/g,'');if(n.startsWith('0'))n='20'+n.slice(1);
+  window.open('https://wa.me/'+n+'?text='+encodeURIComponent(msg),'_blank');
+  toast('تم حفظ الطلب وإبلاغ المالك');
+  mkRenderPlansCard();
 }
 async function dqHashSecret(secret,salt){
   const value=String(salt)+'|'+String(secret);
@@ -6823,6 +7053,15 @@ function dqApplyReadOnlyPolicy(){
   // Hide account controls from non-management roles. Module permissions govern navigation;
   // local HTML cannot provide tamper-proof authorization against a device owner.
   const nav=document.getElementById('dqAccountsNav');if(nav)nav.style.display=(dqCurrentAccount&&(dqCurrentAccount.role==='owner'||dqCurrentAccount.role==='manager'))?'flex':'none';
+  const isClient=dqCurrentAccount&&dqCurrentAccount.role==='client';
+  document.body.classList.toggle('mk-client-readonly',!!isClient);
+  // إخفاء أزرار الإضافة/التعديل الجذرية عن الموكل
+  if(isClient){
+    document.querySelectorAll('.toolbar .btn-primary, .toolbar .btn-success').forEach(b=>{
+      const t=(b.textContent||'')+ (b.getAttribute('onclick')||'');
+      if(/إضافة|تعديل|حذف|\+ |مسح|استيراد/.test(t)) b.style.display='none';
+    });
+  }
 }
 // Prevent navigation into modules not granted to the current local account.
 const dqOriginalShowPage=showPage;
@@ -6830,6 +7069,8 @@ showPage=function(pageId){
   if(dqCurrentAccount&&!dqHasPerm(pageId)){alert('ليس لديك صلاحية لفتح هذا القسم.');return}
   if(pageId==='accounts'&&(!dqCurrentAccount||!['owner','manager'].includes(dqCurrentAccount.role))){alert('هذه الصفحة مخصصة للمالك والمدير.');return}
   dqOriginalShowPage(pageId);
+  if(pageId==='settings'){try{mkRenderPlansCard()}catch(e){}}
+  if(pageId==='clients'||pageId==='cases'){try{dqApplyReadOnlyPolicy()}catch(e){}}
 };
 document.addEventListener('click',function(e){
   const nav=e.target.closest('.nav-item[data-page]');if(nav&&dqCurrentAccount&&!dqHasPerm(nav.dataset.page)){e.preventDefault();e.stopImmediatePropagation();alert('ليس لديك صلاحية لفتح هذا القسم.');}
@@ -6839,7 +7080,7 @@ function renderDQAccounts(){
   if(!['owner','manager'].includes(dqCurrentAccount.role)){wrap.innerHTML='<p>لا توجد صلاحية.</p>';list.innerHTML='';return}
   const all=dqAccounts();const editing=all.find(x=>x.id===dqEditingAccountId)||null;
   const canManageRole=r=>dqCurrentAccount.role==='owner'||(dqCurrentAccount.role==='manager'&&['lawyer','client'].includes(r));
-  const roles=dqCurrentAccount.role==='owner'?[['manager','مدير'],['lawyer','محامٍ']]:[['lawyer','محامٍ']];
+  const roles=dqCurrentAccount.role==='owner'?[['manager','مدير'],['lawyer','محامٍ'],['client','موكل']]:[['lawyer','محامٍ'],['client','موكل']];
   const role=editing?editing.role:(dqCurrentAccount.role==='owner'?'manager':'lawyer');
   const permitted=editing?canManageRole(editing.role):true;
   if(editing&&!permitted){dqEditingAccountId=null;return renderDQAccounts()}
@@ -6874,18 +7115,45 @@ function dqSetAllPerms(on){document.querySelectorAll('.dqPermCheck').forEach(c=>
 function dqEditAccount(id){dqEditingAccountId=id;renderDQAccounts()}
 function dqCancelEditAccount(){dqEditingAccountId=null;renderDQAccounts()}
 async function dqSaveAccount(id){
-  const name=(document.getElementById('dqAccName')?.value||'').trim(),username=(document.getElementById('dqAccUsername')?.value||'').trim(),password=document.getElementById('dqAccPassword')?.value||'',role=document.getElementById('dqAccRole')?.value||'lawyer';
-  const contactEmail=(document.getElementById('dqAccEmail')?.value||'').trim().toLowerCase();
-  const contactPhone=dqNormPhoneLocal(document.getElementById('dqAccPhone')?.value||'');
-  if(!name||!username)return alert('أدخل الاسم واسم الدخول.');if(!id&&password.length<8)return alert('كلمة المرور يجب ألا تقل عن 8 أحرف.');if(password&&password.length<8)return alert('كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف.');
-  if(!contactEmail&&!contactPhone)return alert('يلزم بريد إلكتروني أو رقم هاتف (أحدهما على الأقل).');
+  let name=(document.getElementById('dqAccName')?.value||'').trim(),username=(document.getElementById('dqAccUsername')?.value||'').trim(),password=document.getElementById('dqAccPassword')?.value||'',role=document.getElementById('dqAccRole')?.value||'lawyer';
+  let contactEmail=(document.getElementById('dqAccEmail')?.value||'').trim().toLowerCase();
+  let contactPhone=dqNormPhoneLocal(document.getElementById('dqAccPhone')?.value||'');
+  if(!name||!username)return alert('أدخل الاسم واسم الدخول.');
   if(role==='owner')return alert('لا يمكن إنشاء مالك آخر أو تحويل حساب إلى مالك من هذه الشاشة.');
   const linkedClientId=role==='client'?(document.getElementById('dqAccClientId')?.value||''):'';
   if(role==='client'&&!linkedClientId)return alert('اربط حساب الموكل بسجل العميل الخاص به.');
   if(dqCurrentAccount.role==='manager'&&!['lawyer','client'].includes(role))return alert('المدير يستطيع إدارة حسابات المحامين والموكلين فقط.');
+  // حدود الباقة للمحامين
+  if(role==='lawyer'&&!id&&typeof mkCanCreateLawyer==='function'&&!mkCanCreateLawyer()){
+    const lim=mkPlanLimits();
+    return alert('وصلتَ لحد حسابات المحامين في باقتك الحالية ('+lim.maxLawyers+'). رقِّ الباقة أو أوقف حسابًا.');
+  }
+  // حساب الموكل: اليوزر = الهاتف، الباسورد = الرقم التعريفي
+  if(role==='client'){
+    const cl=DB.get('clients').find(x=>x.id===linkedClientId);
+    if(!cl)return alert('سجل الموكل غير موجود.');
+    if(!cl.code){cl.code=mkNextClientCode();DB.set('clients',DB.get('clients').map(x=>x.id===cl.id?cl:x));}
+    if(!cl.phone)return alert('أضف رقم هاتف في ملف الموكل أولًا.');
+    username=String(cl.phone).trim();
+    contactPhone=dqNormPhoneLocal(cl.phone);
+    if(!contactEmail)contactEmail=(cl.email||'').trim().toLowerCase();
+    if(!id)password=String(cl.code);
+    else if(!password)password=''; // تعديل دون تغيير كلمة المرور
+    if(!id&&password.length<4)return alert('الرقم التعريفي قصير جدًا.');
+  } else {
+    if(!id&&password.length<8)return alert('كلمة المرور يجب ألا تقل عن 8 أحرف.');
+    if(password&&password.length<8)return alert('كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف.');
+    if(!contactEmail&&!contactPhone)return alert('يلزم بريد إلكتروني أو رقم هاتف (أحدهما على الأقل).');
+  }
+  // صلاحيات الموكل صارمة: لا يُسمح بتوسيعها لصلاحيات تعديل حساسة
+  let perms=Array.from(document.querySelectorAll('.dqPermCheck:checked')).map(c=>c.value);
+  if(role==='client'){
+    const allowed=new Set(['dashboard','cases','courtday','billing']);
+    perms=perms.filter(p=>allowed.has(p));
+    if(!perms.length)perms=dqDefaultPerms('client');
+  }
   const all=dqAccounts();if(all.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id))return alert('اسم الدخول مستخدم بالفعل.');
   let u=id?all.find(x=>x.id===id):null;if(id&&!u)return alert('الحساب غير موجود.');
-  const perms=Array.from(document.querySelectorAll('.dqPermCheck:checked')).map(c=>c.value);
   if(!u){const salt=DB.uid();u={id:DB.uid(),createdAt:new Date().toISOString(),active:true,salt,passHash:await dqHashSecret(password,salt)};all.push(u)}else if(password){u.salt=DB.uid();u.passHash=await dqHashSecret(password,u.salt)}
   u.name=name;u.username=username;u.role=role;u.permissions=role==='owner'?dqDefaultPerms('owner'):perms;u.clientId=linkedClientId||null;u.active=u.active!==false;u.contactEmail=contactEmail;u.contactPhone=contactPhone;
   dqSaveAccounts(all);

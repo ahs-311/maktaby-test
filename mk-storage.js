@@ -21,7 +21,29 @@
     office_readonly: 'المكتب في وضع العرض فقط. جدّد الاشتراك لرفع ملفات.',
     forbidden: 'ليست لديك صلاحية رفع الملفات.'
   };
-  const SOFT = new Set(['storage_not_configured', 'server_error', 'bad_action']);   // الخدمة غير جاهزة: لا نعطّل التطبيق
+  const SOFT = new Set(['storage_not_configured', 'server_error', 'bad_action', 'missing_secrets', 'bad_key', 'bot_token_invalid', 'chat_unreachable', 'bot_not_admin', 'bot_cannot_post', 'db_not_ready', 'telegram_error', 'http_401', 'http_403']);
+  const SECRET_AR = { TELEGRAM_BOT_TOKEN: 'مفتاح الربط', TELEGRAM_CHAT_ID: 'معرّف القناة', FILE_ENCRYPTION_KEY: 'مفتاح التشفير' };
+  function explain(e) {
+    const c = e && e.code;
+    if (c === 'network') return 'لا يوجد اتصال بالخادم الآن.';
+    if (c === 'storage_not_configured') return 'خدمة حفظ الملفات غير منشورة بعد على الخادم، أو إعدادها غير مكتمل.';
+    if (c === 'missing_secrets') return 'إعداد خدمة الملفات ناقص: ' + (e.missing || []).map(k => SECRET_AR[k] || k).join('، ') + '.';
+    if (c === 'bad_key') return 'مفتاح التشفير غير صالح (يجب أن يكون 32 بايت بصيغة base64).';
+    if (c === 'bot_token_invalid') return 'مفتاح الربط مرفوض أو ملغى. أضف المفتاح الجديد.';
+    if (c === 'chat_unreachable') return 'تعذر الوصول إلى قناة الملفات: تأكد من معرّف القناة ومن إضافة البوت إليها.';
+    if (c === 'bot_not_admin' || c === 'bot_cannot_post') return 'البوت ليس مسؤولًا في القناة أو لا يملك صلاحية النشر.';
+    if (c === 'db_not_ready') return 'تجهيز قاعدة البيانات غير مكتمل: نفّذ ملف migration-08 الأحدث.';
+    if (c === 'http_401' || c === 'http_403') return 'الخادم رفض الطلب: أوقف التحقق التلقائي (Verify JWT) للدالة ثم انشرها من جديد.';
+    if (c === 'telegram_error') return 'رفضت الخدمة الإرسال' + (e.detail ? ': ' + e.detail : '.');
+    if (c === 'telegram_busy') return 'ضغط على الخدمة؛ ستُعاد المحاولة تلقائيًا.';
+    return MSG[c] || ('خطأ غير متوقع (' + c + ').');
+  }
+  let softAt = 0;
+  function recordErr(e) {
+    if (!e || e.network) return;
+    LS.set('mk_st_err', { code: e.code, detail: e.detail || null, missing: e.missing || null, t: Date.now() });
+    if (SOFT.has(e.code) && Date.now() - softAt > 600000) { softAt = Date.now(); note('تعذر رفع الملفات للمساحة: ' + explain(e) + ' الملفات محفوظة على هذا الجهاز فقط.', true); }
+  }   // الخدمة غير جاهزة: لا نعطّل التطبيق
 
   /* ---------------- نداء الخادم ---------------- */
   let unavailableUntil = 0;
@@ -37,8 +59,9 @@
     } catch (e) { const x = new Error('network'); x.network = true; throw x; }
     let d = null; try { d = await res.json(); } catch { }
     if (!res.ok) {
-      const e = new Error((d && d.error) || ('http_' + res.status)); e.code = e.message; e.status = res.status;
+      const e = new Error((d && d.error) || ('http_' + res.status)); e.code = e.message; e.status = res.status; e.missing = d && d.missing; e.detail = d && d.detail;
       if (res.status === 404 && !(d && d.error)) { e.code = 'storage_not_configured'; }   // الدالة غير منشورة بعد
+      recordErr(e);
       if (SOFT.has(e.code)) unavailableUntil = Date.now() + 5 * 60000;
       throw e;
     }
@@ -47,9 +70,10 @@
   async function authHeaders() { const c = C(), t = await c.token(); return { Authorization: 'Bearer ' + t, apikey: c.anonKey }; }
   async function readErr(res) {
     let d = null; try { d = await res.json(); } catch { }
-    const e = new Error((d && d.error) || ('http_' + res.status)); e.code = e.message; e.status = res.status;
+    const e = new Error((d && d.error) || ('http_' + res.status)); e.code = e.message; e.status = res.status; e.missing = d && d.missing; e.detail = d && d.detail;
     if (res.status === 404 && !(d && d.error)) e.code = 'storage_not_configured';
     if (SOFT.has(e.code)) unavailableUntil = Date.now() + 5 * 60000;
+    recordErr(e);
     return e;
   }
   async function upload(id, blob) {
@@ -60,6 +84,7 @@
       });
     } catch (e) { const x = new Error('network'); x.network = true; throw x; }
     if (!res.ok) throw await readErr(res);
+    LS.set('mk_st_err', null);
   }
   async function download(id) {
     let res;
@@ -189,6 +214,21 @@
     return n;
   }
 
+  async function selftest() {
+    const box = $('mkStDiag'); if (box) box.innerHTML = '⏳ جارٍ فحص خدمة الملفات…';
+    let html;
+    try {
+      const r = await fn('selftest', {});
+      unavailableUntil = 0; LS.set('mk_st_err', null); kick();
+      html = '<span style="color:#2e7d32">✅ خدمة الملفات تعمل بشكل سليم.</span>' + (r && r.can_delete === false ? '<br><span style="color:#b45309">تنبيه: البوت لا يملك صلاحية حذف الرسائل؛ حذف الملفات لن يمسحها من القناة.</span>' : '');
+    } catch (e) { html = '<span style="color:#b3261e">❌ ' + esc(explain(e)) + '</span> <small style="color:var(--text-muted)">(' + esc(e.code) + ')</small>'; }
+    if ($('mkStDiag')) $('mkStDiag').innerHTML = html + queueLine();
+  }
+  function queueLine() {
+    const n = Object.keys(upQ()).length, er = LS.get('mk_st_err', null);
+    return (n ? '<br><small>ملفات بانتظار الرفع: ' + n + '</small>' : '') + (er && er.code ? '<br><small style="color:#b3261e">آخر مشكلة: ' + esc(explain(er)) + '</small>' : '');
+  }
+
   /* ---------------- الاستهلاك ---------------- */
   async function usage() {
     try { const u = await C().rpc('my_storage_usage'); LS.set('mk_usage', u); return u; }
@@ -239,7 +279,7 @@
     const stateTxt = { trial: 'فترة تجريبية', active: 'نشط', expiring: 'ينتهي قريبًا', readonly: 'منتهٍ — عرض فقط', suspended: 'موقوف' }[d.state] || d.state;
     const renewed = !paid ? 'غير منطبق (فترة تجريبية)' : (d.is_renewed ? '✅ تم التجديد' + (d.renewals_count > 1 ? ' (' + d.renewals_count + ' مرات)' : '') : '❌ لم يتم التجديد بعد');
     const rows = [
-      ['الباقة الحالية', paid ? 'مدفوعة (300 ميجابايت)' : 'تجريبية — 15 يومًا (30 ميجابايت)'],
+      ['الباقة الحالية', paid ? ((typeof mkGetOfficePlan === 'function' ? mkGetOfficePlan().name : 'مدفوعة') + ' — راجع باقات المكتب في الإعدادات') : 'تجريبية — 15 يومًا'],
       ['حالة الاشتراك', stateTxt],
       ['تاريخ البداية', day(d.starts_at)],
       ['تاريخ النهاية', day(d.ends_at)],
@@ -255,7 +295,7 @@
     const sb = $('mkStorageBody'), ub = $('mkSubBody');
     if (!sb && !ub) return;
     const isOn = navigator.onLine;
-    if (sb) { const u = await usage(); if ($('mkStorageBody')) $('mkStorageBody').innerHTML = storageHTML(u, !isOn); }
+    if (sb) { const u = await usage(); if ($('mkStorageBody')) $('mkStorageBody').innerHTML = storageHTML(u, !isOn); const dg = $('mkStDiag'); if (dg && !/فحص|✅|❌/.test(dg.innerHTML)) dg.innerHTML = queueLine(); }
     if (ub) {
       let d = null;
       try { d = await C().rpc('my_subscription_details'); LS.set('mk_subdet', d); } catch (e) { d = LS.get('mk_subdet', null); }
@@ -271,9 +311,11 @@
       const d = document.createElement('div'); d.className = 'card'; d.id = 'mkStorageCard'; d.style.marginTop = '20px';
       d.innerHTML = '<div class="card-header"><h2>مساحة التخزين</h2></div><div class="card-body">' +
         '<div id="mkStorageBody" style="font-size:14px;line-height:1.9">جارٍ التحميل…</div>' +
-        '<div style="margin-top:12px"><button class="btn btn-outline btn-sm" id="mkStUpBtn">☁️ رفع ملفات هذا الجهاز إلى مساحة المكتب</button></div></div>';
+        '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm" id="mkStUpBtn">☁️ رفع ملفات هذا الجهاز إلى مساحة المكتب</button><button class="btn btn-outline btn-sm" id="mkStTestBtn">🔍 فحص خدمة الملفات</button></div>' +
+        '<div id="mkStDiag" style="margin-top:10px;font-size:13px;line-height:1.9"></div></div>';
       page.insertBefore(d, page.children[1] || null);
       $('mkStUpBtn').onclick = () => scanLocal();
+      $('mkStTestBtn').onclick = () => selftest();
     }
     if (!$('mkSubCard')) {
       const d = document.createElement('div'); d.className = 'card'; d.id = 'mkSubCard'; d.style.marginTop = '20px';

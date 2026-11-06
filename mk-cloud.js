@@ -789,22 +789,46 @@
     const g = i => ($(i) || {}).value || '', cur = dqCurrentAccount;
     if (!cur || cur.role !== 'manager') return alert('إدارة الحسابات لمدير المكتب فقط.');
     if (isRO()) return alert('المكتب في وضع العرض فقط. جدّد الاشتراك أولًا.');
-    const name = g('dqAccName').trim(), username = g('dqAccUsername').trim().toLowerCase(), password = g('dqAccPassword'), role = g('dqAccRole') || 'lawyer';
-    if (!name || !username) return alert('أدخل الاسم واسم الدخول.');
-    if (!validUser(username)) return alert('اسم الدخول: حروف إنجليزية صغيرة وأرقام ونقطة وشرطة فقط (من 3 إلى 30).');
+    let name = g('dqAccName').trim(), username = g('dqAccUsername').trim().toLowerCase(), password = g('dqAccPassword'), role = g('dqAccRole') || 'lawyer';
+    if (!name) return alert('أدخل الاسم.');
     if (!['lawyer', 'client'].includes(role)) return alert('يمكنك إنشاء حسابات المحامين والموكلين فقط.');
-    if (!id && password.length < 8) return alert('كلمة المرور يجب ألا تقل عن 8 أحرف.');
     const clientId = role === 'client' ? g('dqAccClientId') : '';
     if (role === 'client' && !clientId) return alert('اربط حساب الموكل بسجل العميل الخاص به.');
+    if (role === 'lawyer' && !id && typeof mkCanCreateLawyer === 'function' && !mkCanCreateLawyer()) {
+      return alert('وصلتَ لحد حسابات المحامين في باقتك. رقِّ الباقة أولاً.');
+    }
+    let contactEmail = g('dqAccEmail').trim().toLowerCase();
+    let contactPhone = normPhone(g('dqAccPhone').trim());
+    if (role === 'client') {
+      const cl = DB.get('clients').find(x => x.id === clientId);
+      if (!cl) return alert('سجل الموكل غير موجود.');
+      if (!cl.code && typeof mkNextClientCode === 'function') {
+        cl.code = mkNextClientCode();
+        DB.set('clients', DB.get('clients').map(x => x.id === cl.id ? cl : x));
+      }
+      if (!cl.phone) return alert('أضف رقم هاتف في ملف الموكل.');
+      username = arDigits(cl.phone).replace(/\D/g, '');
+      if (!validUser(username)) username = ('c' + username).slice(0, 30);
+      contactPhone = normPhone(cl.phone);
+      contactEmail = contactEmail || (cl.email || '').trim().toLowerCase();
+      if (!id) password = String(cl.code || '');
+      if (!id && password.length < 4) return alert('الرقم التعريفي غير صالح.');
+    } else {
+      if (!username) return alert('أدخل اسم الدخول.');
+      if (!validUser(username)) return alert('اسم الدخول: حروف إنجليزية صغيرة وأرقام ونقطة وشرطة فقط (من 3 إلى 30).');
+      if (!id && password.length < 8) return alert('كلمة المرور يجب ألا تقل عن 8 أحرف.');
+      if (!contactEmail && !contactPhone) return alert('يلزم بريد إلكتروني أو رقم هاتف للحساب (أحدهما على الأقل).');
+    }
+    if (contactEmail && !isEmail(contactEmail)) return alert('صيغة البريد غير صحيحة.');
     const nid = arDigits(g('dqLawNid')).replace(/\s/g, '');
     if (role === 'lawyer' && nid && !/^\d{14}$/.test(nid)) return alert('الرقم القومي يجب أن يكون 14 رقمًا.');
     if (!navigator.onLine) return alert('إنشاء الحسابات وتعديلها يحتاج اتصالًا بالإنترنت.');
-    const perms = Array.from(document.querySelectorAll('.dqPermCheck:checked')).map(c => c.value);
-    const contactEmail = g('dqAccEmail').trim().toLowerCase();
-    const contactPhone = normPhone(g('dqAccPhone').trim());
-    if (!contactEmail && !contactPhone) return alert('يلزم بريد إلكتروني أو رقم هاتف للحساب (أحدهما على الأقل).');
-    if (contactEmail && !isEmail(contactEmail)) return alert('صيغة البريد غير صحيحة.');
-    if (contactPhone && !isPhone(contactPhone)) return alert('صيغة الهاتف غير صحيحة.');
+    let perms = Array.from(document.querySelectorAll('.dqPermCheck:checked')).map(c => c.value);
+    if (role === 'client') {
+      const allowed = new Set(['dashboard', 'cases', 'courtday', 'billing']);
+      perms = perms.filter(p => allowed.has(p));
+      if (!perms.length) perms = ['dashboard', 'cases', 'courtday', 'billing'];
+    }
     const extra = Object.assign(
       role === 'lawyer' ? { regNo: g('dqLawNo').trim(), nationalId: nid, regGrade: g('dqLawGrade') } : {},
       { contactEmail, contactPhone }
@@ -1032,6 +1056,27 @@
     try {
       anns = await rest('/rest/v1/announcements?select=*&order=created_at.desc&limit=100'); lastAnnAt = Date.now();
       LS.set('mk_ann_' + me.id, anns); ensureBell(); renderBell();
+      // تطبيق قرارات الباقة من إشعارات المالك فورًا
+      try {
+        const applied = new Set(LS.get('mk_plan_decisions_applied', []));
+        anns.forEach(a => {
+          if (applied.has(a.id)) return;
+          const m = String(a.body || '').match(/\[\[MK_PLAN_DECISION\]\](\{[\s\S]*\})/);
+          if (!m) return;
+          let payload = null; try { payload = JSON.parse(m[1]); } catch (_) { return; }
+          if (typeof mkApplyOwnerPlanDecision === 'function') mkApplyOwnerPlanDecision(payload);
+          else {
+            let p = {}; try { p = JSON.parse(localStorage.getItem('dq_office_profile') || '{}'); } catch (_) { }
+            if (payload.approved !== false && payload.planId) {
+              p.planId = payload.planId;
+              if (Array.isArray(payload.addonIds)) p.addonIds = payload.addonIds;
+              localStorage.setItem('dq_office_profile', JSON.stringify(p));
+            }
+          }
+          applied.add(a.id);
+        });
+        LS.set('mk_plan_decisions_applied', [...applied].slice(-200));
+      } catch (e2) { console.warn(e2); }
       if (!annShown && unread().length) { annShown = true; openAnn(); }
     } catch (e) { if (!e.network) console.warn('[mk ann]', e.message); }
   }
@@ -1174,7 +1219,8 @@
         }
         const act = el('div', null, 'display:flex;gap:6px;flex-wrap:wrap');
         if (ac) act.append(obtn('سند الموافقة', () => showEvidence(ac.id)));
-        act.append(obtn('تجديد', () => mkRenew(o.id), 'btn-primary'), obtn('الدفعات', () => mkPays(o.id)), obtn('تصحيح التواريخ', () => mkAdjust(o.id)),
+        act.append(obtn('تجديد', () => mkRenew(o.id), 'btn-primary'), obtn('تعيين الباقة', () => mkSetOfficePlan(o.id), 'btn-primary'),
+          obtn('الدفعات', () => mkPays(o.id)), obtn('تصحيح التواريخ', () => mkAdjust(o.id)),
           obtn(o.active ? 'إيقاف يدوي' : 'إلغاء الإيقاف', () => window.mkToggleOffice(o.id, !o.active)));
         info.style.flex = '1';
         row.append(info, act);
@@ -1197,7 +1243,57 @@
       else { d = dur.value === 'custom' ? parseInt(days.value, 10) : parseInt(dur.value, 10); if (!(d > 0)) { alert('أدخل عدد أيام صحيحًا.'); return false; } }
       const r = await rpc('renew_subscription', { p_office_id: id, p_days: d, p_until: u, p_amount: amount.value ? Number(amount.value) : null,
         p_method: method.value, p_reference: ref.value, p_note: note.value });
-      alert('تم التجديد. ينتهي الاشتراك: ' + fmtDate(r && r.ends_at)); renderOwner();
+      // إشعار فوري للمكتب
+      try {
+        await rpc('create_announcement', {
+          p_title: 'تم تجديد اشتراك مكتبك',
+          p_body: 'تم تجديد الاشتراك من قبل المالك.\nينتهي الاشتراك في: ' + fmtDate(r && r.ends_at) + (note.value ? '\nملاحظة: ' + note.value : ''),
+          p_severity: 'info',
+          p_target_office_id: id
+        });
+      } catch (e) { console.warn(e); }
+      alert('تم التجديد وإشعار المكتب. ينتهي الاشتراك: ' + fmtDate(r && r.ends_at)); renderOwner();
+    });
+  }
+  function mkSetOfficePlan(id) {
+    const o = ownerOffices.find(x => x.id === id); if (!o) return;
+    const plans = (typeof MK_OFFICE_PLANS !== 'undefined' ? Object.values(MK_OFFICE_PLANS) : [
+      { id: 'p1', name: 'مكتب صغير' }, { id: 'p2', name: 'مكتب متوسط' }, { id: 'p3', name: 'مؤسسة' }
+    ]);
+    const addons = (typeof MK_STORAGE_ADDONS !== 'undefined' ? Object.values(MK_STORAGE_ADDONS) : []);
+    const planSel = sel(plans.map(p => [p.id, p.name]));
+    const body = el('div');
+    body.append(el('p', 'عند الموافقة تُرسل للمكتب إشعار فوري وتُحدَّث باقته. إن لم يدفع ارفض الطلب ببساطة.', 'font-size:13px;opacity:.8;margin-bottom:8px'));
+    body.append(fld('الباقة', planSel));
+    const addBox = el('div');
+    addons.forEach(a => {
+      const lab = el('label', null, 'display:block;margin:4px 0;font-size:13px');
+      const cb = el('input'); cb.type = 'checkbox'; cb.value = a.id; cb.style.marginLeft = '6px';
+      lab.append(cb, document.createTextNode(' ' + a.name + ' (+' + a.filesMB + ' مستندات / +' + a.dbMB + ' بيانات)'));
+      addBox.append(lab);
+    });
+    body.append(fld('إضافات المساحة', addBox));
+    const decision = sel([['approve', 'موافقة وتفعيل'], ['reject', 'رفض الطلب']]);
+    const note = inp('text', 'ملاحظة للمكتب');
+    body.append(fld('القرار', decision), fld('ملاحظة', note));
+    mkModal('تعيين باقة: ' + o.name, body, 'تنفيذ وإشعار المكتب', async () => {
+      const addonIds = [...addBox.querySelectorAll('input:checked')].map(c => c.value);
+      const approved = decision.value === 'approve';
+      const planName = (plans.find(p => p.id === planSel.value) || {}).name || planSel.value;
+      const marker = '[[MK_PLAN_DECISION]]' + JSON.stringify({ planId: planSel.value, addonIds, approved, at: new Date().toISOString() });
+      const title = approved ? ('موافقة: تفعيل باقة «' + planName + '»') : ('رفض طلب تعديل الباقة');
+      const text = (approved
+        ? ('تمت الموافقة على باقة «' + planName + '»' + (addonIds.length ? ' مع إضافات المساحة.' : '.') + '\nستُحدَّث إعدادات مكتبك تلقائيًا.')
+        : ('تم رفض طلب تعديل الباقة/المساحة.' + (note.value ? '\nالسبب: ' + note.value : '\nتواصل مع المالك بعد السداد.')))
+        + '\n\n' + marker;
+      await rpc('create_announcement', {
+        p_title: title,
+        p_body: text,
+        p_severity: approved ? 'info' : 'warning',
+        p_target_office_id: id
+      });
+      alert(approved ? 'تم التفعيل وإشعار المكتب.' : 'تم إرسال قرار الرفض للمكتب.');
+      renderOwner();
     });
   }
   async function mkPays(id) {
@@ -1219,11 +1315,31 @@
     mkModal('تصحيح تواريخ: ' + o.name, body, 'حفظ', async () => {
       if (!tr.value) { alert('حدّد نهاية الفترة المجانية.'); return false; }
       await rpc('adjust_office_dates', { p_office_id: id, p_trial_ends_at: new Date(tr.value).toISOString(), p_paid_until: pd.value ? new Date(pd.value).toISOString() : null });
+      try {
+        await rpc('create_announcement', {
+          p_title: 'تعديل تواريخ اشتراك مكتبك',
+          p_body: 'قام المالك بتعديل تواريخ الاشتراك.\nنهاية التجربة: ' + fmtDate(new Date(tr.value).toISOString()) +
+            '\nنهاية المدفوع: ' + (pd.value ? fmtDate(new Date(pd.value).toISOString()) : '—'),
+          p_severity: 'info',
+          p_target_office_id: id
+        });
+      } catch (e) { console.warn(e); }
       renderOwner();
     });
   }
   window.mkToggleOffice = async function (id, active) {
-    try { await rpc('set_office_active', { p_office_id: id, p_active: active }); renderOwner(); } catch (e) { alert(friendly(e)); }
+    try {
+      await rpc('set_office_active', { p_office_id: id, p_active: active });
+      try {
+        await rpc('create_announcement', {
+          p_title: active ? 'تم إعادة تفعيل مكتبك' : 'تم إيقاف مكتبك',
+          p_body: active ? 'أعاد المالك تفعيل المكتب. يمكنك العمل بشكل طبيعي.' : 'أوقف المالك المكتب يدويًا. تواصل معه للاستفسار.',
+          p_severity: active ? 'info' : 'urgent',
+          p_target_office_id: id
+        });
+      } catch (_) { }
+      renderOwner();
+    } catch (e) { alert(friendly(e)); }
   };
 
   /* ---------------- تشغيل ---------------- */
