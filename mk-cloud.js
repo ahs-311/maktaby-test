@@ -189,6 +189,13 @@
     });
   }
 
+  (function clearObsoleteResetArtifacts() {
+    LS.set('mk_pending_reset_user', null);
+    const codes = LS.get('mk_otp_store', {});
+    for (const key of Object.keys(codes)) if (key.endsWith(':reset')) delete codes[key];
+    LS.set('mk_otp_store', codes);
+  })();
+
   let session = LS.get('mk_session', null);
   let me = null;               // الحساب الحالي (نفس شكل dqCurrentAccount)
   let expired = false, lastError = '', pushing = false, syncing = false;
@@ -535,7 +542,7 @@
   function gate(mode) {
     const link = (m, t) => '<div style="text-align:center;margin-top:12px"><a href="#" onclick="mkGate(\'' + m + '\');return false">' + t + '</a></div>';
     if (mode === 'register') {
-      dqSetGate('إنشاء حساب مدير مكتب', 'سيُنشأ مكتب جديد منفصل. يلزم بريد إلكتروني أو رقم هاتف (أحدهما على الأقل) لتأكيد الحساب واستعادة كلمة المرور.',
+      dqSetGate('إنشاء حساب مدير مكتب', 'سيُنشأ مكتب جديد منفصل. يلزم بريد إلكتروني أو رقم هاتف (أحدهما على الأقل) لبيانات التواصل وتأكيد الحساب؛ لا توجد استعادة ذاتية لمدير المكتب.',
         F('mkOfficeName', 'اسم المكتب', 'required placeholder="مثال: مكتب الأستاذ ..."') +
         F('dqAuthName', 'اسم المدير', 'required autocomplete="name"') +
         F('dqAuthUsername', 'اسم الدخول (إنجليزي: حروف وأرقام)', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="مثال: ahmed.law"') +
@@ -547,17 +554,10 @@
         link('login', 'لدي حساب بالفعل — تسجيل الدخول'), 'إنشاء المكتب');
       $('dqAuthForm').dataset.mode = 'mk-register';
     } else if (mode === 'forgot') {
-      dqSetGate('نسيت كلمة المرور', 'أدخل اسم الدخول أو البريد أو رقم الهاتف المسجّل. سيُصدر كود تفعيل لمدة 15 دقيقة.',
-        F('dqAuthUsername', 'اسم الدخول أو البريد أو الهاتف', 'required dir="ltr" autocapitalize="none" autocomplete="username"') +
-        link('login', 'العودة لتسجيل الدخول'), 'إرسال كود التحقق');
-      $('dqAuthForm').dataset.mode = 'mk-forgot';
-    } else if (mode === 'reset') {
-      dqSetGate('تعيين كلمة مرور جديدة', 'أدخل كود التحقق الذي وصلك (أو المعروض على هذا الجهاز) ثم كلمة المرور الجديدة.',
-        F('dqAuthOtp', 'كود التحقق (6 أرقام)', 'required dir="ltr" inputmode="numeric" autocomplete="one-time-code" maxlength="6"') +
-        F('dqAuthPassword', 'كلمة المرور الجديدة (8 أحرف على الأقل)', 'type="password" required autocomplete="new-password"') +
-        F('dqAuthPassword2', 'تأكيد كلمة المرور', 'type="password" required autocomplete="new-password"') +
-        link('forgot', 'إعادة إرسال الكود') + link('login', 'العودة لتسجيل الدخول'), 'حفظ كلمة المرور');
-      $('dqAuthForm').dataset.mode = 'mk-reset';
+      dqSetGate('استعادة كلمة المرور', 'لا توجد استعادة ذاتية آمنة من شاشة الدخول.',
+        '<p class="dq-auth-note">إذا كنت موظفًا أو محاميًا أو موكلًا، اطلب من مدير المكتب تعيين كلمة مرور جديدة من «الحسابات والصلاحيات».</p><p class="dq-auth-note">إذا كنت مدير المكتب، يمكنك تغيير كلمة المرور بعد تسجيل الدخول بإدخال الحالية. إذا نسيتها، لا توجد استعادة ذاتية في التطبيق؛ يلزم مسؤول مشروع Supabase لاستعادة الحساب من لوحة الإدارة الرسمية.</p>' +
+        link('login', 'العودة لتسجيل الدخول'), 'العودة لتسجيل الدخول');
+      $('dqAuthForm').dataset.mode = 'mk-recovery-help';
     } else {
       dqSetGate('تسجيل الدخول', 'الموظفون: بريد أو هاتف أو الرقم التعريفي. الموكل: اسم الدخول (8 خانات) أو الرقم التعريفي. يعمل بدون إنترنت بعد أول دخول.',
         F('dqAuthUsername', 'البريد / الهاتف / اسم الدخول / الرقم التعريفي', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="بريد أو هاتف أو يوزرنيم"') +
@@ -610,12 +610,11 @@
   window.dqSubmitAuth = async function (ev) {
     ev.preventDefault();
     const mode = $('dqAuthForm').dataset.mode;
-    if (mode !== 'mk-login' && mode !== 'mk-register' && mode !== 'mk-forgot' && mode !== 'mk-reset') return origSubmit(ev);
+    if (mode === 'mk-recovery-help') { gate('login'); return false; }
+    if (mode !== 'mk-login' && mode !== 'mk-register') return origSubmit(ev);
     const btn = $('dqAuthSubmit'), label = btn.textContent; btn.disabled = true; btn.textContent = 'جارٍ المعالجة…';
     try {
       if (mode === 'mk-register') await register();
-      else if (mode === 'mk-forgot') await forgotPassword();
-      else if (mode === 'mk-reset') await resetPasswordWithOtp();
       else await login();
     }
     catch (e) { if (!(e && (e.user || e.network))) console.error(e); alert(friendly(e)); }
@@ -647,47 +646,6 @@
     if (!rec) throw uerr('لا يمكن الدخول بدون إنترنت لأول مرة على هذا الجهاز. اتصل بالإنترنت وسجّل الدخول مرة واحدة.');
     if (await derive(password, rec.salt, rec.iter) !== rec.hash) throw uerr('بيانات الدخول غير صحيحة.');
     await enter(rec.profile, rec.office, true);
-  }
-  async function forgotPassword() {
-    const identifier = ($('dqAuthUsername').value || '').trim();
-    if (!identifier) throw uerr('أدخل اسم الدخول أو البريد أو الهاتف.');
-    const username = resolveUsername(identifier);
-    if (!username) throw uerr('لا يوجد حساب محفوظ على هذا الجهاز بهذه البيانات. سجّل الدخول مرة وأنت متصل ثم أعد المحاولة، أو اطلب من المدير إعادة التعيين.');
-    const all = LS.get('mk_offline_auth', {});
-    const rec = all[username];
-    const c = contactFromExtra((rec && rec.profile && rec.profile.extra) || {});
-    const email = (rec && rec.contactEmail) || c.email || '';
-    const phone = (rec && rec.contactPhone) || c.phone || '';
-    if (!email && !phone) throw uerr('هذا الحساب لا يحتوي بريدًا ولا هاتفًا مربوطًا. اطلب من المدير إضافة وسيلة تواصل أو تعيين كلمة مرور.');
-    const channel = email ? 'email' : 'phone';
-    const dest = email || phone;
-    const code = await issueOtp('reset', username, channel, dest);
-    LS.set('mk_pending_reset_user', username);
-    await deliverOtpFree(code, { email, phone, purpose: 'استعادة كلمة المرور — مكتبي' });
-    gate('reset');
-  }
-  async function resetPasswordWithOtp() {
-    const username = LS.get('mk_pending_reset_user', null);
-    if (!username) throw uerr('انتهت جلسة الاستعادة. ابدأ من «نسيت كلمة المرور» مرة أخرى.');
-    const code = ($('dqAuthOtp').value || '').trim();
-    const pw = $('dqAuthPassword').value || '', pw2 = ($('dqAuthPassword2') || {}).value || '';
-    if (!/^\d{6}$/.test(code)) throw uerr('أدخل كود التحقق المكوّن من 6 أرقام.');
-    if (pw.length < 8) throw uerr('كلمة المرور 8 أحرف على الأقل.');
-    if (pw !== pw2) throw uerr('كلمتا المرور غير متطابقتين.');
-    if (!(await verifyOtp('reset', username, code))) throw uerr('كود التحقق غير صحيح أو منتهٍ.');
-    const all = LS.get('mk_offline_auth', {});
-    const rec = all[username];
-    if (!rec) throw uerr('لا توجد بيانات محفوظة لهذا الحساب على الجهاز.');
-    await saveOffline(username, pw, rec.profile, rec.office, { email: rec.contactEmail, phone: rec.contactPhone });
-    // إن أمكن تحديث كلمة المرور أونلاين بعد الدخول القديم لن يعمل — نحدّث الأوفلاين ونُعلم المستخدم
-    if (navigator.onLine && rec.profile && rec.profile.user_id) {
-      try {
-        // لا يمكن تغيير كلمة مرور Supabase بدون جلسة أو صلاحية مدير؛ الاعتماد على الأوفلاين + المدير
-      } catch (e) { }
-    }
-    LS.set('mk_pending_reset_user', null);
-    alert('تم تعيين كلمة المرور الجديدة على هذا الجهاز. يمكنك تسجيل الدخول بها الآن.\nإن فشل الدخول عبر الإنترنت، اطلب من مدير المكتب تعيين كلمة المرور من «الحسابات والصلاحيات».');
-    gate('login');
   }
   async function register() {
     const office = ($('mkOfficeName').value || '').trim(), name = ($('dqAuthName').value || '').trim();

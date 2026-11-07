@@ -7081,10 +7081,12 @@ function dqFindLocalUser(identifier){
   });
 }
 function dqInitAuth(){
+  // Remove legacy same-device reset codes; they did not reset the authenticated account.
+  try{localStorage.removeItem('dq_reset_otp')}catch{}
   dqEnsureAccountCodes();
   const users=dqAccounts();
   if(!users.length){
-    dqSetGate('إنشاء مالك النظام','أنشئ حساب المالك. يلزم بريد أو هاتف لاستعادة كلمة المرور لاحقًا.',
+    dqSetGate('إنشاء مالك النظام','أنشئ حساب المالك. البريد والهاتف بيانات تواصل فقط؛ لا توجد استعادة ذاتية لكلمة المرور.',
       '<div class="form-group"><label>اسم المالك</label><input id="dqAuthName" required autocomplete="name" placeholder="الاسم" /></div><div class="form-group"><label>اسم الدخول</label><input id="dqAuthUsername" required autocomplete="username" placeholder="مثال: owner" /></div><div class="form-group"><label>البريد الإلكتروني (أو هاتف)</label><input id="dqAuthEmail" type="email" dir="ltr" autocomplete="email" placeholder="name@example.com" /></div><div class="form-group"><label>رقم الهاتف (أو بريد)</label><input id="dqAuthPhone" type="tel" dir="ltr" autocomplete="tel" placeholder="01xxxxxxxxx" /></div><div class="form-group"><label>كلمة مرور محلية (8 أحرف على الأقل)</label><input id="dqAuthPassword" type="password" required minlength="8" autocomplete="new-password" /></div><div class="form-group"><label>تأكيد كلمة المرور</label><input id="dqAuthPassword2" type="password" required minlength="8" autocomplete="new-password" /></div>', 'إنشاء حساب المالك');
     document.getElementById('dqAuthForm').dataset.mode='setup';
   } else {
@@ -7094,34 +7096,14 @@ function dqInitAuth(){
   }
 }
 function dqLocalForgot(){
-  dqSetGate('نسيت كلمة المرور','أدخل اسم الدخول أو البريد أو الهاتف المسجّل.',
-    '<div class="form-group"><label>البريد أو الهاتف أو اسم الدخول</label><input id="dqAuthUsername" required autocomplete="username" /></div><div style="text-align:center;margin-top:10px"><a href="#" onclick="dqInitAuth();return false">العودة لتسجيل الدخول</a></div>','إرسال كود التحقق');
-  document.getElementById('dqAuthForm').dataset.mode='forgot';
-}
-/** إيصال كود مجاني: واتساب لنفسك + بريد الجهاز + نسخ — بلا أي تكلفة */
-function dqDeliverOtpFree(code, opts){
-  opts=opts||{};
-  const email=opts.email||'', phone=opts.phone||'', purpose=opts.purpose||'كود التحقق — مكتبي';
-  const body=purpose+'\n\nالكود: '+code+'\nصالح 15 دقيقة.';
-  return new Promise(resolve=>{
-    const ov=document.createElement('div');
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl';
-    const card=document.createElement('div');
-    card.style.cssText='background:var(--card,#fff);color:var(--text,#111);border-radius:14px;padding:20px;max-width:400px;width:100%';
-    card.innerHTML='<h3 style="margin:0 0 8px">كود التحقق (مجاني)</h3><p style="font-size:13px;opacity:.8;margin:0 0 12px">بدون رسائل مدفوعة. أرسل الكود لنفسك مجانًا أو انسخه.</p><div style="font-size:28px;font-weight:700;letter-spacing:6px;text-align:center;padding:12px;background:rgba(0,0,0,.06);border-radius:10px;margin-bottom:14px;direction:ltr">'+code+'</div><div id="dqOtpBtns" style="display:flex;flex-direction:column;gap:8px"></div>';
-    ov.appendChild(card);document.body.appendChild(ov);
-    const box=card.querySelector('#dqOtpBtns');
-    const add=(label,fn,pri)=>{const b=document.createElement('button');b.type='button';b.className=pri?'btn btn-primary':'btn btn-outline';b.style.cssText='width:100%;justify-content:center';b.textContent=label;b.onclick=fn;box.appendChild(b)};
-    if(phone){let p=dqNormPhoneLocal(phone).replace(/^\+/,'');if(/^01[0125]\d{8}$/.test(p))p='20'+p.slice(1);
-      add('📱 واتساب لنفسك (مجاني)',()=>window.open('https://wa.me/'+p+'?text='+encodeURIComponent(body),'_blank'),true)}
-    if(email)add('✉️ بريد لنفسك (مجاني)',()=>{location.href='mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent(purpose)+'&body='+encodeURIComponent(body)},!phone);
-    add('📋 نسخ الكود',async()=>{try{await navigator.clipboard.writeText(code)}catch{} alert('تم النسخ')});
-    add('متابعة',()=>{ov.remove();resolve()},true);
-  });
+  dqSetGate('استعادة كلمة المرور','لا توجد استعادة ذاتية آمنة من هذه الشاشة.',
+    '<p class="dq-auth-note">إذا كنت موظفًا أو محاميًا أو موكلًا، اطلب من مدير المكتب تعيين كلمة مرور جديدة من «الحسابات والصلاحيات». إذا كنت مالك النظام، فلا توجد استعادة ذاتية آمنة داخل التطبيق؛ يلزمك التواصل مع مسؤول النظام لإجراء استعادة موثوقة.</p><div style="text-align:center;margin-top:10px"><a href="#" onclick="dqInitAuth();return false">العودة لتسجيل الدخول</a></div>','العودة لتسجيل الدخول');
+  document.getElementById('dqAuthForm').dataset.mode='recovery-help';
 }
 async function dqSubmitAuth(event){
   event.preventDefault();const form=document.getElementById('dqAuthForm');const mode=form.dataset.mode;
   const username=(document.getElementById('dqAuthUsername')?.value||'').trim();const password=document.getElementById('dqAuthPassword')?.value||'';
+  if(mode==='recovery-help'){dqInitAuth();return false;}
   if(mode==='setup'){
     const name=(document.getElementById('dqAuthName')?.value||'').trim();const p2=document.getElementById('dqAuthPassword2')?.value||'';
     const contactEmail=(document.getElementById('dqAuthEmail')?.value||'').trim().toLowerCase();
@@ -7132,34 +7114,6 @@ async function dqSubmitAuth(event){
     const salt=DB.uid();const passHash=await dqHashSecret(password,salt);
     dqSaveAccounts([{id:DB.uid(),name,username,role:'owner',salt,passHash,active:true,permissions:dqDefaultPerms('owner'),contactEmail,contactPhone,accountCode:dqNextAccountCode(),createdAt:new Date().toISOString()}]);
     dqCurrentAccount=dqAccounts()[0];dqEnterApp();return false;
-  }
-  if(mode==='forgot'){
-    const user=dqFindLocalUser(username);
-    if(!user)return alert('لم يُعثر على حساب بهذه البيانات.');
-    if(!user.contactEmail&&!user.contactPhone)return alert('لا يوجد بريد أو هاتف مربوط بهذا الحساب.');
-    const code=String(Math.floor(100000+Math.random()*900000));
-    const salt=DB.uid();
-    const hash=await dqHashSecret(code,salt);
-    localStorage.setItem('dq_reset_otp',JSON.stringify({userId:user.id,salt,hash,exp:Date.now()+15*60*1000}));
-    await dqDeliverOtpFree(code,{email:user.contactEmail||'',phone:user.contactPhone||'',purpose:'استعادة كلمة المرور — مكتبي'});
-    dqSetGate('تعيين كلمة مرور جديدة','أدخل الكود وكلمة المرور الجديدة.',
-      '<div class="form-group"><label>كود التحقق</label><input id="dqAuthOtp" required dir="ltr" inputmode="numeric" maxlength="6" /></div><div class="form-group"><label>كلمة المرور الجديدة</label><input id="dqAuthPassword" type="password" required minlength="8" autocomplete="new-password" /></div><div class="form-group"><label>تأكيد كلمة المرور</label><input id="dqAuthPassword2" type="password" required minlength="8" autocomplete="new-password" /></div>','حفظ');
-    document.getElementById('dqAuthForm').dataset.mode='reset';
-    return false;
-  }
-  if(mode==='reset'){
-    const otp=(document.getElementById('dqAuthOtp')?.value||'').trim();
-    const p2=document.getElementById('dqAuthPassword2')?.value||'';
-    let rec;try{rec=JSON.parse(localStorage.getItem('dq_reset_otp')||'null')}catch{rec=null}
-    if(!rec||Date.now()>rec.exp)return alert('انتهت صلاحية الكود. ابدأ من جديد.');
-    const h=await dqHashSecret(otp,rec.salt);if(h!==rec.hash)return alert('كود غير صحيح.');
-    if(password.length<8)return alert('كلمة المرور 8 أحرف على الأقل.');
-    if(password!==p2)return alert('كلمتا المرور غير متطابقتين.');
-    const all=dqAccounts();const u=all.find(x=>x.id===rec.userId);if(!u)return alert('الحساب غير موجود.');
-    u.salt=DB.uid();u.passHash=await dqHashSecret(password,u.salt);dqSaveAccounts(all);
-    localStorage.removeItem('dq_reset_otp');
-    alert('تم تعيين كلمة المرور. سجّل الدخول.');
-    dqInitAuth();return false;
   }
   const user=dqFindLocalUser(username);
   if(!user)return alert('بيانات الدخول غير صحيحة أو الحساب موقوف.');
@@ -7289,7 +7243,7 @@ function renderDQAccounts(){
     <div class="form-group"><label>اسم الدخول (فريد)</label><input id="dqAccUsername" value="${dqEsc(editing?.username||'')}" ${editing?'readonly':''} /></div></div>
     <div class="form-grid"><div class="form-group"><label>البريد الإلكتروني</label><input id="dqAccEmail" type="email" dir="ltr" value="${dqEsc(editing?.contactEmail||'')}" placeholder="name@example.com" /></div>
     <div class="form-group"><label>رقم الهاتف</label><input id="dqAccPhone" type="tel" dir="ltr" value="${dqEsc(editing?.contactPhone||'')}" placeholder="01xxxxxxxxx" /></div></div>
-    <p class="dq-auth-note" style="margin-top:-8px">يلزم بريد أو هاتف (أحدهما على الأقل) لتسجيل الدخول واستعادة كلمة المرور.</p>
+    <p class="dq-auth-note" style="margin-top:-8px">البريد والهاتف بيانات تواصل؛ تعيين كلمة مرور جديدة للحسابات التابعة يتم عبر مدير المكتب.</p>
     <div class="form-grid"><div class="form-group"><label>الدور</label><select id="dqAccRole" onchange="dqRenderPermEditor();dqRenderClientLink()">${roles.map(([v,l])=>`<option value="${v}" ${role===v?'selected':''}>${l}</option>`).join('')}</select></div>
     <div class="form-group"><label>${editing?'كلمة مرور جديدة (اتركها فارغة دون تغيير)':'كلمة مرور أولية (8 أحرف على الأقل)'}</label><input id="dqAccPassword" type="password" ${editing?'':'required'} minlength="8" autocomplete="new-password" /></div></div>
     <div id="dqClientLinkWrap"></div><div id="dqLawyerInfoWrap"></div><div id="dqPermEditor"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-primary" onclick="dqSaveAccount('${editing?editing.id:''}')">${editing?'حفظ التعديلات':'إنشاء الحساب'}</button>${editing?'<button class="btn btn-outline" onclick="dqCancelEditAccount()">إلغاء</button>':''}</div>
