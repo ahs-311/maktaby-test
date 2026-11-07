@@ -197,6 +197,8 @@
   })();
 
   let session = LS.get('mk_session', null);
+  let recoveryChallengeId = null;
+  const contactChallenges = {};
   let me = null;               // الحساب الحالي (نفس شكل dqCurrentAccount)
   let expired = false, lastError = '', pushing = false, syncing = false;
   let pollTimer = null, pushTimer = null;
@@ -554,10 +556,14 @@
         link('login', 'لدي حساب بالفعل — تسجيل الدخول'), 'إنشاء المكتب');
       $('dqAuthForm').dataset.mode = 'mk-register';
     } else if (mode === 'forgot') {
-      dqSetGate('استعادة كلمة المرور', 'لا توجد استعادة ذاتية آمنة من شاشة الدخول.',
-        '<p class="dq-auth-note">إذا كنت موظفًا أو محاميًا أو موكلًا، اطلب من مدير المكتب تعيين كلمة مرور جديدة من «الحسابات والصلاحيات».</p><p class="dq-auth-note">إذا كنت مدير المكتب، يمكنك تغيير كلمة المرور بعد تسجيل الدخول بإدخال الحالية. إذا نسيتها، لا توجد استعادة ذاتية في التطبيق؛ يلزم مسؤول مشروع Supabase لاستعادة الحساب من لوحة الإدارة الرسمية.</p>' +
-        link('login', 'العودة لتسجيل الدخول'), 'العودة لتسجيل الدخول');
-      $('dqAuthForm').dataset.mode = 'mk-recovery-help';
+      recoveryChallengeId = null;
+      dqSetGate('استعادة كلمة مرور المدير',
+        'اكتب اسم الدخول واختر طريقة إرسال الرمز. يلزم أن تكون وسيلة الاستعادة قد تم توثيقها مسبقًا من إعدادات الحساب.',
+        F('mkRecoveryUsername', 'اسم دخول المدير', 'required dir="ltr" autocapitalize="none" autocomplete="username"') +
+        '<div class="form-group"><label for="mkRecoveryChannel">إرسال الرمز عبر</label><select id="mkRecoveryChannel"><option value="sms" selected>رسالة SMS</option><option value="whatsapp">واتساب</option><option value="email">البريد الإلكتروني</option></select></div>' +
+        '<p class="dq-auth-note">إذا كان الحساب ووسيلة الاستعادة مؤهلين، سيصلك رمز صالح لمدة 10 دقائق.</p>' +
+        link('login', 'العودة لتسجيل الدخول'), 'إرسال رمز الاستعادة');
+      $('dqAuthForm').dataset.mode = 'mk-recovery-start';
     } else {
       dqSetGate('تسجيل الدخول', 'الموظفون: بريد أو هاتف أو الرقم التعريفي. الموكل: اسم الدخول (8 خانات) أو الرقم التعريفي. يعمل بدون إنترنت بعد أول دخول.',
         F('dqAuthUsername', 'البريد / الهاتف / اسم الدخول / الرقم التعريفي', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="بريد أو هاتف أو يوزرنيم"') +
@@ -610,6 +616,8 @@
   window.dqSubmitAuth = async function (ev) {
     ev.preventDefault();
     const mode = $('dqAuthForm').dataset.mode;
+    if (mode === 'mk-recovery-start') { await startManagerRecovery(); return false; }
+    if (mode === 'mk-recovery-finish') { await finishManagerRecovery(); return false; }
     if (mode === 'mk-recovery-help') { gate('login'); return false; }
     if (mode !== 'mk-login' && mode !== 'mk-register') return origSubmit(ev);
     const btn = $('dqAuthSubmit'), label = btn.textContent; btn.disabled = true; btn.textContent = 'جارٍ المعالجة…';
@@ -892,6 +900,123 @@
     if (res.status === 404 && !code) throw uerr('دالة admin-members غير منشورة في الخادم بعد. انشرها أولًا (خطوات النشر في README).');
     throw uerr(map[code] || ('تعذر التنفيذ (HTTP ' + res.status + ')'));
   }
+  async function recoveryRequest(action, payload, accessToken) {
+    if (!navigator.onLine) throw uerr('استعادة كلمة المرور تحتاج اتصالًا بالإنترنت.');
+    let response;
+    try {
+      response = await fetch(BASE + '/functions/v1/manager-recovery', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json', apikey: CFG.anonKey },
+          accessToken ? { Authorization: 'Bearer ' + accessToken } : {}),
+        body: JSON.stringify(Object.assign({ action }, payload)),
+      });
+    } catch { throw netErr(); }
+    let data = {}; try { data = await response.json(); } catch { }
+    if (!response.ok) {
+      const messages = {
+        recovery_backend_not_configured: 'خدمة الاستعادة غير مهيأة على الخادم بعد.',
+        email_provider_not_configured: 'إرسال البريد غير مهيأ على الخادم بعد.',
+        phone_provider_not_configured: 'إرسال SMS وواتساب غير مهيأ على الخادم بعد.',
+        delivery_failed: 'تعذر إرسال الرمز الآن. تحقق من إعداد خدمة الإرسال وحاول لاحقًا.',
+        rate_limited: 'طلبات كثيرة؛ انتظر قليلًا قبل المحاولة مرة أخرى.',
+        invalid_or_expired_code: 'الرمز غير صحيح أو انتهت صلاحيته. ابدأ من جديد.',
+        current_password_invalid: 'كلمة المرور الحالية غير صحيحة.',
+        invalid_destination: 'تحقق من البريد أو رقم الهاتف.',
+        password_updated_refresh_required: 'تم تغيير كلمة المرور، لكن يلزم تحديث إعداد المزامنة؛ تواصل مع الدعم قبل تسجيل الخروج.',
+      };
+      throw uerr(messages[data.error] || 'تعذر إكمال العملية. تحقق من إعداد الاستعادة على الخادم.');
+    }
+    return data;
+  }
+  async function startManagerRecovery() {
+    const username = ($('mkRecoveryUsername')?.value || '').trim().toLowerCase();
+    const channel = $('mkRecoveryChannel')?.value || '';
+    if (!validUser(username)) return alert('أدخل اسم دخول صحيحًا.');
+    const btn = $('dqAuthSubmit'); if (btn) { btn.disabled = true; btn.textContent = 'جارٍ الإرسال…'; }
+    try {
+      const result = await recoveryRequest('start-recovery', { username, channel });
+      recoveryChallengeId = result.challenge_id;
+      const label = channel === 'email' ? 'البريد الإلكتروني' : channel === 'sms' ? 'رسالة SMS' : 'واتساب';
+      dqSetGate('أدخل رمز الاستعادة', `إذا كان الحساب ووسيلة الاستعادة المسجلة صالحين، فسيصلك الرمز عبر ${label}. الرمز صالح 10 دقائق.`,
+        '<div class="form-group"><label>رمز التحقق</label><input id="mkRecoveryCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required dir="ltr" /></div>' +
+        '<div class="form-group"><label>كلمة المرور الجديدة (8 أحرف على الأقل)</label><input id="mkRecoveryPassword" type="password" minlength="8" autocomplete="new-password" required dir="ltr" /></div>' +
+        '<div class="form-group"><label>تأكيد كلمة المرور</label><input id="mkRecoveryPassword2" type="password" minlength="8" autocomplete="new-password" required dir="ltr" /></div>' +
+        '<div style="text-align:center;margin-top:10px"><a href="#" onclick="mkGate(\'forgot\');return false">إعادة البدء أو اختيار طريقة أخرى</a></div>',
+        'تعيين كلمة المرور الجديدة');
+      $('dqAuthForm').dataset.mode = 'mk-recovery-finish';
+    } catch (e) { alert(friendly(e)); if (btn) { btn.disabled = false; btn.textContent = 'إرسال رمز الاستعادة'; } }
+  }
+  async function finishManagerRecovery() {
+    const code = ($('mkRecoveryCode')?.value || '').trim();
+    const password = $('mkRecoveryPassword')?.value || '';
+    const confirmPassword = $('mkRecoveryPassword2')?.value || '';
+    if (!recoveryChallengeId) return alert('ابدأ طلب استعادة جديدًا.');
+    if (!/^\d{6}$/.test(code)) return alert('أدخل رمز التحقق المكوّن من 6 أرقام.');
+    if (password.length < 8 || password.length > 72) return alert('كلمة المرور يجب أن تكون من 8 إلى 72 حرفًا.');
+    if (password !== confirmPassword) return alert('كلمتا المرور غير متطابقتين.');
+    const btn = $('dqAuthSubmit'); if (btn) { btn.disabled = true; btn.textContent = 'جارٍ التحقق…'; }
+    try {
+      await recoveryRequest('finish-recovery', { challenge_id: recoveryChallengeId, code, password });
+      recoveryChallengeId = null;
+      alert('تم تغيير كلمة المرور. سجّل الدخول بالبيانات الجديدة.');
+      gate('login');
+    } catch (e) { alert(friendly(e)); if (btn) { btn.disabled = false; btn.textContent = 'تعيين كلمة المرور الجديدة'; } }
+  }
+  window.mkRenderManagerRecoverySettings = async function () {
+    const host = $('mkManagerRecoverySettings');
+    if (!host) return;
+    const account = dqCurrentAccount || me;
+    if (!account || account.role !== 'manager' || !session || !navigator.onLine) { host.style.display = 'none'; return; }
+    host.style.display = '';
+    const status = (verified, value) => verified && value ? 'موثّق' : value ? 'غير موثّق' : 'غير مضاف';
+    host.innerHTML = `<div class="card-header"><h2>وسائل استعادة حساب المدير</h2></div><div class="card-body">` +
+      `<p class="dq-auth-note">أضف بريدًا أو رقم هاتف تملكه، ثم أثبته برمز يصل إليك. لا تُستخدم أي وسيلة للاستعادة قبل توثيقها.</p>` +
+      `<div class="form-grid"><div class="form-group"><label>بريد الاستعادة — <span id="mkRecoveryEmailStatus">جارٍ التحميل</span></label><input id="mkRecoveryContactEmail" type="email" dir="ltr" autocomplete="email" placeholder="name@example.com" /></div>` +
+      `<div class="form-group"><label>رقم الهاتف لـ SMS وواتساب — <span id="mkRecoveryPhoneStatus">جارٍ التحميل</span></label><input id="mkRecoveryContactPhone" type="tel" dir="ltr" autocomplete="tel" placeholder="+2010xxxxxxxx" /></div></div>` +
+      `<div class="form-group"><label>كلمة مرور المدير الحالية لتأكيد تغيير وسيلة الاستعادة</label><input id="mkRecoveryCurrentPassword" type="password" autocomplete="current-password" /></div>` +
+      `<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline" type="button" onclick="mkStartContactVerification('email')">إثبات البريد</button>` +
+      `<button class="btn btn-outline" type="button" onclick="mkStartContactVerification('sms')">إثبات رقم الهاتف</button></div>` +
+      `<div id="mkRecoveryContactVerify"></div><p id="mkRecoveryContactMessage" class="dq-auth-note"></p></div>`;
+    try {
+      const rows = await api('/rest/v1/manager_recovery_contacts?user_id=eq.' + encodeURIComponent(account.id) + '&select=user_id,recovery_email,recovery_email_verified,recovery_phone,recovery_phone_verified', { token: session.access_token });
+      if ((dqCurrentAccount || me)?.id !== account.id || !$('mkRecoveryContactEmail')) return;
+      const contact = rows && rows[0] || {};
+      $('mkRecoveryContactEmail').value = contact.recovery_email || '';
+      $('mkRecoveryContactPhone').value = contact.recovery_phone || '';
+      $('mkRecoveryEmailStatus').textContent = status(contact.recovery_email_verified === true, contact.recovery_email || '');
+      $('mkRecoveryPhoneStatus').textContent = status(contact.recovery_phone_verified === true, contact.recovery_phone || '');
+      recoveryContactsLoadedFor = account.id;
+    } catch (e) {
+      const message = $('mkRecoveryContactMessage');
+      if (message) message.textContent = 'تعذر تحميل وسائل الاستعادة المحفوظة. تحقق من إعداد قاعدة البيانات والاتصال.';
+    }
+  };
+  window.mkStartContactVerification = async function (channel) {
+    const field = channel === 'email' ? $('mkRecoveryContactEmail') : $('mkRecoveryContactPhone');
+    const destination = (field?.value || '').trim();
+    const currentPassword = $('mkRecoveryCurrentPassword')?.value || '';
+    if (!destination) return alert(channel === 'email' ? 'أدخل بريد الاستعادة.' : 'أدخل رقم الهاتف.');
+    if (currentPassword.length < 8) return alert('أدخل كلمة مرور المدير الحالية لتأكيد هويتك.');
+    const message = $('mkRecoveryContactMessage');
+    try {
+      const result = await recoveryRequest('start-contact-verification', { channel, destination, current_password: currentPassword }, session.access_token);
+      contactChallenges[channel] = result.challenge_id;
+      const box = $('mkRecoveryContactVerify');
+      box.innerHTML = `<div class="form-group"><label>أدخل الرمز المرسل إلى ${esc(result.masked || 'وسيلة التواصل')}</label><input id="mkRecoveryContactCode" inputmode="numeric" maxlength="6" dir="ltr" autocomplete="one-time-code" /></div><button class="btn btn-primary" type="button" onclick="mkFinishContactVerification('${channel}')">تأكيد الرمز</button>`;
+      if (message) message.textContent = 'أدخل الرمز قبل انتهاء صلاحيته (10 دقائق).';
+    } catch (e) { alert(friendly(e)); }
+  };
+  window.mkFinishContactVerification = async function (channel) {
+    const code = ($('mkRecoveryContactCode')?.value || '').trim();
+    const challenge_id = contactChallenges[channel];
+    if (!challenge_id || !/^\d{6}$/.test(code)) return alert('أدخل رمز التحقق المكوّن من 6 أرقام.');
+    try {
+      await recoveryRequest('finish-contact-verification', { challenge_id, code }, session.access_token);
+      delete contactChallenges[channel];
+      await window.mkRenderManagerRecoverySettings();
+      const message = $('mkRecoveryContactMessage'); if (message) message.textContent = 'تم توثيق وسيلة الاستعادة. يمكنك اختيارها عند نسيان كلمة المرور.';
+    } catch (e) { alert(friendly(e)); }
+  };
   window.dqResetAccountPassword = function (id) {
     const cur = dqCurrentAccount;
     if (!cur || cur.role !== 'manager') return alert('تغيير كلمات المرور لمدير المكتب فقط.');

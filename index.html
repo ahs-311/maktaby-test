@@ -1937,6 +1937,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
     <!-- SETTINGS -->
     <div class="page" id="page-settings">
       <div id="mkPlansHost"></div>
+      <div id="mkManagerRecoverySettings" class="card" style="display:none;margin-bottom:16px;"></div>
       <div class="two-col">
         <div class="card">
           <div class="card-header"><h2>maktaby+ — النسخ الاحتياطي واستيراد/تصدير البيانات</h2></div>
@@ -6537,6 +6538,7 @@ function dqInstallPrintBranding() {
 
 // ===================== SETTINGS =====================
 function renderSettings() {
+  try { if (window.mkRenderManagerRecoverySettings) window.mkRenderManagerRecoverySettings(); } catch (e) {}
   try { mkLoadAlertPrefsUI(); } catch (e) {}
   dqLoadOfficeProfile();
   const canEditOffice = !dqCurrentAccount || ['owner','manager'].includes(dqCurrentAccount.role);
