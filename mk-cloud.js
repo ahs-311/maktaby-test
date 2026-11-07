@@ -47,27 +47,35 @@
     const all = LS.get('mk_offline_auth', {});
     if (all[raw]) return raw;
     const phoneQ = normPhone(identifier);
-    // بحث بالرقم التعريفي في الحسابات المحلية أولًا
     try {
       if (typeof dqEnsureAccountCodes === 'function') dqEnsureAccountCodes();
       const accts = (typeof dqAccounts === 'function' ? dqAccounts() : []) || [];
-      const byCode = accts.find(a => a.active !== false && String(a.accountCode || '').toUpperCase() === rawUp);
-      if (byCode) {
-        // الموكل يُسمح له فقط بالرقم التعريفي (وقد وصلنا عبره)
-        return (byCode.username || '').toLowerCase();
-      }
-      // رفض دخول الموكل بالهاتف/البريد/اليوزرنيم
-      const clientHit = accts.find(a => {
+      // موكل: يوزرنيم أو رقم تعريفي فقط (لا هاتف/بريد)
+      const clientOk = accts.find(a => {
+        if (a.active === false || a.role !== 'client') return false;
+        if ((a.username || '').toLowerCase() === raw) return true;
+        if (String(a.accountCode || '').toUpperCase() === rawUp) return true;
+        return false;
+      });
+      if (clientOk) return (clientOk.username || '').toLowerCase();
+      const clientBad = accts.find(a => {
         if (a.active === false || a.role !== 'client') return false;
         const em = (a.contactEmail || '').toLowerCase();
         const ph = normPhone(a.contactPhone || '');
-        return (a.username || '').toLowerCase() === raw || em === raw || (ph && (ph === phoneQ || ph.endsWith(phoneQ.slice(-10))));
+        return em === raw || (ph && (ph === phoneQ || ph.endsWith(phoneQ.slice(-10))));
       });
-      if (clientHit) return null; // موكل بدون رقم تعريفي → لا دخول
+      if (clientBad) return null;
+      const byCode = accts.find(a => a.active !== false && a.role !== 'client' && String(a.accountCode || '').toUpperCase() === rawUp);
+      if (byCode) return (byCode.username || '').toLowerCase();
     } catch (e) { }
     for (const [u, rec] of Object.entries(all)) {
       const p = rec.profile || {};
-      if (p.role === 'client') continue; // الموكل من الأوفلاين أيضًا بالرقم التعريفي فقط عبر dqAccounts
+      if (p.role === 'client') {
+        if ((p.username || u).toLowerCase() === raw) return u;
+        if (rec.accountCode && String(rec.accountCode).toUpperCase() === rawUp) return u;
+        if (p.accountCode && String(p.accountCode).toUpperCase() === rawUp) return u;
+        continue;
+      }
       const c = contactFromExtra(p.extra);
       if ((p.username || u).toLowerCase() === raw) return u;
       if (c.email && c.email === raw) return u;
@@ -551,8 +559,8 @@
         link('forgot', 'إعادة إرسال الكود') + link('login', 'العودة لتسجيل الدخول'), 'حفظ كلمة المرور');
       $('dqAuthForm').dataset.mode = 'mk-reset';
     } else {
-      dqSetGate('تسجيل الدخول', 'الموظفون: بريد أو هاتف أو الرقم التعريفي. الموكل: الرقم التعريفي فقط. يعمل بدون إنترنت على الأجهزة التي سجّلت منها سابقًا.',
-        F('dqAuthUsername', 'البريد / الهاتف / الرقم التعريفي', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="بريد أو هاتف أو AC…"') +
+      dqSetGate('تسجيل الدخول', 'الموظفون: بريد أو هاتف أو الرقم التعريفي. الموكل: اسم الدخول (8 خانات) أو الرقم التعريفي. يعمل بدون إنترنت بعد أول دخول.',
+        F('dqAuthUsername', 'البريد / الهاتف / اسم الدخول / الرقم التعريفي', 'required dir="ltr" autocapitalize="none" autocomplete="username" placeholder="بريد أو هاتف أو يوزرنيم"') +
         F('dqAuthPassword', 'كلمة المرور', 'type="password" required autocomplete="current-password"') +
         link('forgot', 'نسيت كلمة المرور؟') +
         link('register', 'إنشاء مكتب جديد (مدير مكتب)'), 'دخول');
@@ -841,13 +849,13 @@
       }
       contactPhone = contactPhone || normPhone(cl.phone || '');
       contactEmail = contactEmail || (cl.email || '').trim().toLowerCase();
-      // اسم الدخول الداخلي فريد؛ الدخول الفعلي للموكل بالرقم التعريفي فقط
+      // يوزرنيم تلقائي 8 خانات + كلمة المرور = كود الموكل
       if (!id) {
-        username = ('c' + arDigits(cl.phone || cl.code || '').replace(/\D/g, '').slice(-12) || ('c' + Date.now().toString(36))).toLowerCase().slice(0, 30);
-        if (!validUser(username)) username = ('c' + Date.now().toString(36)).slice(0, 30);
-        if (!password) password = String(cl.code || accountCode);
+        username = (typeof dqGenEasyUsername === 'function' ? dqGenEasyUsername() : ('u' + Date.now().toString(36)).slice(0, 8));
+        if (!validUser(username)) username = ('u' + Math.random().toString(36).slice(2, 9)).slice(0, 8);
+        password = String(cl.code || '');
       }
-      if (!id && password.length < 4) return alert('كلمة مرور الموكل غير صالحة.');
+      if (!id && password.length < 4) return alert('كود الموكل غير صالح ككلمة مرور.');
     } else {
       if (!username) return alert('أدخل اسم الدخول.');
       if (!validUser(username)) return alert('اسم الدخول: حروف إنجليزية صغيرة وأرقام ونقطة وشرطة فقط (من 3 إلى 30).');
@@ -1209,85 +1217,194 @@
         rest('/rest/v1/policy_acceptances?select=id,office_id,doc_version,accepted_at,ip&order=accepted_at.desc').catch(() => null)]);   // null = لم يُنفَّذ migration-07
       ownerOffices = offs;
       const box = el('div');
-      // ---- صندوق طلبات الباقات/المساحة ----
-      box.append(el('h3', '📥 طلبات الباقات والمساحة', 'margin-bottom:6px'),
-        el('p', 'الطلبات الواردة من المكاتب. وافق أو ارفض من «تعيين الباقة». الإشعار للمكتب داخل التطبيق فقط.', 'font-size:13px;opacity:.75;margin-bottom:8px'));
+      box.append(el('h2', 'لوحة مالك النظام', 'margin:0 0 12px;font-size:20px'));
+      box.append(el('p', 'إدارة المكاتب · الاشتراكات · المساحات · التنبيهات', 'margin:0 0 16px;opacity:.75;font-size:13px'));
+      // ---- صندوق طلبات الباقات/المساحة (سيرفر + محلي) ----
+      const secReq = el('div', null, 'background:rgba(0,0,0,.03);border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:14px;margin-bottom:16px');
+      secReq.append(el('h3', '📥 طلبات الباقات والمساحة', 'margin:0 0 6px'),
+        el('p', 'من السيرفر (بعد migration-09) ومن الجهاز. الموافقة تضبط الحصة على الخادم وتُشعر المكتب داخل التطبيق.', 'font-size:13px;opacity:.75;margin-bottom:8px'));
+      box.append(secReq);
       let inbox = [];
-      try { inbox = JSON.parse(localStorage.getItem('mk_owner_inbox') || '[]'); } catch (_) { }
-      if (!inbox.length) box.append(el('p', 'لا طلبات واردة على هذا الجهاز حاليًا.', 'opacity:.7;margin-bottom:12px'));
+      try {
+        const srv = await rpc('list_plan_requests', { p_status: null });
+        const arr = Array.isArray(srv) ? srv : (srv && Array.isArray(srv) ? srv : (typeof srv === 'object' && srv ? Object.values(srv) : []));
+        // rpc قد يعيد jsonb كمصفوفة مباشرة
+        const list = Array.isArray(srv) ? srv : (Array.isArray(srv && srv.length) ? srv : (srv && typeof srv === 'object' && !Array.isArray(srv) ? (Array.isArray(JSON.parse(JSON.stringify(srv))) ? JSON.parse(JSON.stringify(srv)) : []) : []));
+        const normalized = (Array.isArray(srv) ? srv : []).map(r => ({
+          id: r.id, serverId: r.id, officeId: r.office_id, officeName: r.office_name,
+          type: r.req_type, planId: r.plan_id, addons: r.addon_ids || [],
+          customFilesMB: r.custom_files_mb || 0, customDbMB: r.custom_db_mb || 0,
+          note: r.note, status: r.status, at: r.created_at, by: r.requester_name, fromServer: true
+        }));
+        if (Array.isArray(srv)) {
+          inbox = normalized;
+        } else if (srv && typeof srv === 'object') {
+          // jsonb array as parsed array
+          try {
+            const parsed = typeof srv === 'string' ? JSON.parse(srv) : srv;
+            if (Array.isArray(parsed)) {
+              inbox = parsed.map(r => ({
+                id: r.id, serverId: r.id, officeId: r.office_id, officeName: r.office_name,
+                type: r.req_type, planId: r.plan_id, addons: r.addon_ids || [],
+                customFilesMB: r.custom_files_mb || 0, customDbMB: r.custom_db_mb || 0,
+                note: r.note, status: r.status, at: r.created_at, by: r.requester_name, fromServer: true
+              }));
+            }
+          } catch (_) { }
+        }
+      } catch (_) { /* migration غير مطبّق بعد */ }
+      try {
+        const local = JSON.parse(localStorage.getItem('mk_owner_inbox') || '[]');
+        local.forEach(r => {
+          if (!inbox.some(x => x.id === r.id || x.serverId === r.serverId)) inbox.push(r);
+        });
+      } catch (_) { }
+      if (!inbox.length) secReq.append(el('p', 'لا طلبات واردة. بعد تنفيذ migration-09 تظهر طلبات كل المكاتب هنا من السحابة.', 'opacity:.7;margin:0'));
       else {
-        inbox.slice(0, 20).forEach(r => {
-          const row = el('div', null, 'border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px');
+        inbox.slice(0, 30).forEach(r => {
+          const row = el('div', null, 'border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;background:#fff');
           const planName = (typeof MK_OFFICE_PLANS !== 'undefined' && r.planId && MK_OFFICE_PLANS[r.planId]) ? MK_OFFICE_PLANS[r.planId].name : (r.planId || '—');
           const detail = r.type === 'custom'
             ? ('مساحة مخصصة: مستندات ' + (r.customFilesMB || 0) + ' / بيانات ' + (r.customDbMB || 0) + ' ميجا')
             : ('باقة: ' + planName);
-          row.append(el('div', (r.status === 'pending' ? '⏳ ' : r.status === 'approved' ? '✅ ' : '❌ ') + (r.officeName || 'مكتب'), 'font-weight:700'),
+          const acts = el('div', null, 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px');
+          row.append(el('div', (r.status === 'pending' ? '⏳ ' : r.status === 'approved' ? '✅ ' : '❌ ') + (r.officeName || 'مكتب') + (r.fromServer ? ' · سحابة' : ' · محلي'), 'font-weight:700'),
             el('div', detail),
-            el('div', (r.note ? r.note + ' · ' : '') + new Date(r.at).toLocaleString('ar-EG'), 'opacity:.7;font-size:12px'));
-          if (r.officeId) row.append(obtn('تعيين الباقة', () => mkSetOfficePlan(r.officeId), 'btn-primary'));
-          box.append(row);
+            el('div', (r.note ? r.note + ' · ' : '') + (r.at ? new Date(r.at).toLocaleString('ar-EG') : ''), 'opacity:.7;font-size:12px'));
+          if (r.status === 'pending') {
+            if (r.fromServer && r.serverId) {
+              acts.append(obtn('موافقة', async () => {
+                try {
+                  await rpc('resolve_plan_request', {
+                    p_request_id: r.serverId, p_approve: true,
+                    p_plan_id: r.planId, p_addon_ids: r.addons || [],
+                    p_custom_files_mb: r.customFilesMB || 0, p_custom_db_mb: r.customDbMB || 0, p_note: null
+                  });
+                  alert('تمت الموافقة وتحديث الحصة وإشعار المكتب.'); renderOwner();
+                } catch (e) { alert(friendly(e)); }
+              }, 'btn-primary'));
+              acts.append(obtn('رفض', async () => {
+                const why = prompt('سبب الرفض (اختياري)') || '';
+                try {
+                  await rpc('resolve_plan_request', { p_request_id: r.serverId, p_approve: false, p_note: why });
+                  alert('تم الرفض وإشعار المكتب.'); renderOwner();
+                } catch (e) { alert(friendly(e)); }
+              }));
+            }
+            if (r.officeId) acts.append(obtn('تعيين يدوي', () => mkSetOfficePlan(r.officeId)));
+          }
+          row.append(acts); secReq.append(row);
         });
-        box.append(obtn('مسح صندوق الطلبات', () => {
-          if (!confirm('مسح الطلبات المحفوظة على هذا الجهاز؟')) return;
+        secReq.append(obtn('مسح الطلبات المحلية فقط', () => {
+          if (!confirm('مسح الطلبات المحفوظة محليًا؟')) return;
           localStorage.setItem('mk_owner_inbox', '[]'); renderOwner();
         }));
       }
-      box.append(el('hr', null, 'margin:16px 0;opacity:.3'));
-      box.append(el('h3', '📣 إرسال تنبيه للمديرين', 'margin-bottom:6px'),
-        el('p', 'يظهر التنبيه في حساب المدير حتى تحذفه أنت.', 'font-size:13px;opacity:.75;margin-bottom:8px'));
-      const t = inp('text', 'عنوان التنبيه'), b = el('textarea'); b.rows = 3; b.placeholder = 'نص التنبيه'; b.style.width = '100%';
+      // ---- تنبيهات ----
+      const secAnn = el('div', null, 'background:rgba(0,0,0,.03);border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:14px;margin-bottom:16px');
+      secAnn.append(el('h3', '📣 تنبيهات للمديرين', 'margin:0 0 6px'),
+        el('p', 'تظهر داخل التطبيق في حساب المدير.', 'font-size:13px;opacity:.75;margin-bottom:8px'));
+      const t = inp('text', 'عنوان التنبيه'), b = el('textarea'); b.rows = 2; b.placeholder = 'نص التنبيه'; b.style.width = '100%';
       const sv = sel([['info', 'معلومة'], ['warning', 'تحذير'], ['urgent', 'عاجل']]);
       const tg = sel([['', 'كل المديرين']].concat(offs.map(o => [o.id, 'مكتب: ' + o.name])));
-      box.append(fld('العنوان', t), fld('النص', b), fld('الأهمية', sv), fld('المستهدف', tg));
-      box.append(obtn('إرسال التنبيه', async () => {
+      secAnn.append(fld('العنوان', t), fld('النص', b), fld('الأهمية', sv), fld('المستهدف', tg));
+      secAnn.append(obtn('إرسال التنبيه', async () => {
         if (!t.value.trim() || !b.value.trim()) return alert('اكتب العنوان والنص.');
         try { await rpc('create_announcement', { p_title: t.value, p_body: b.value, p_severity: sv.value, p_target_office_id: tg.value || null }); renderOwner(); }
         catch (e) { alert(friendly(e)); }
       }, 'btn-primary'));
-      box.append(el('h4', 'التنبيهات الحالية', 'margin:16px 0 6px'));
-      if (!annList.length) box.append(el('p', 'لا توجد تنبيهات.', 'opacity:.7'));
-      annList.forEach(a => {
-        const o = offs.find(x => x.id === a.target_office_id);
-        const row = el('div', null, 'border-right:4px solid ' + ({ info: '#1d6fb8', warning: '#b45309', urgent: '#b3261e' }[a.severity] || '#1d6fb8') + ';background:rgba(0,0,0,.04);padding:8px 10px;border-radius:8px;margin:6px 0');
-        row.append(el('div', a.title, 'font-weight:700'), el('div', a.body, 'white-space:pre-wrap;font-size:13px'),
-          el('div', (o ? 'إلى: ' + o.name : 'إلى: كل المديرين') + ' · ' + fmtDate(a.created_at), 'font-size:12px;opacity:.7;margin:4px 0'),
-          obtn('حذف', async () => { if (!confirm('حذف هذا التنبيه؟ سيختفي من حسابات المديرين.')) return;
-            try { await rpc('delete_announcement', { p_id: a.id }); renderOwner(); } catch (e) { alert(friendly(e)); } }, 'btn-danger'));
-        box.append(row);
-      });
+      if (annList.length) {
+        secAnn.append(el('h4', 'آخر التنبيهات', 'margin:12px 0 6px'));
+        annList.slice(0, 8).forEach(a => {
+          const o = offs.find(x => x.id === a.target_office_id);
+          const row = el('div', null, 'border-right:4px solid ' + ({ info: '#1d6fb8', warning: '#b45309', urgent: '#b3261e' }[a.severity] || '#1d6fb8') + ';background:#fff;padding:8px 10px;border-radius:8px;margin:6px 0');
+          row.append(el('div', a.title, 'font-weight:700'), el('div', a.body, 'white-space:pre-wrap;font-size:13px'),
+            el('div', (o ? 'إلى: ' + o.name : 'إلى: الكل') + ' · ' + fmtDate(a.created_at), 'font-size:12px;opacity:.7;margin:4px 0'),
+            obtn('حذف', async () => { if (!confirm('حذف هذا التنبيه؟')) return;
+              try { await rpc('delete_announcement', { p_id: a.id }); renderOwner(); } catch (e) { alert(friendly(e)); } }, 'btn-danger'));
+          secAnn.append(row);
+        });
+      }
+      box.append(secAnn);
       wrap.append(box);
       // ---- المكاتب ----
       list.textContent = '';
-      list.append(el('h3', 'المكاتب المسجلة', 'margin:6px 0'));
+      list.append(el('h3', 'المكاتب المسجلة', 'margin:0 0 10px;font-size:18px'));
+      list.append(el('p', 'لكل مكتب: تجديد الاشتراك · تغيير الباقة · ضبط مساحة المستندات/البيانات · إيقاف', 'margin:0 0 12px;font-size:13px;opacity:.75'));
       if (!offs.length) list.append(el('p', 'لا توجد مكاتب بعد.', 'opacity:.7'));
       const now = Date.now();
       offs.forEach(o => {
         const mem = profs.filter(p => p.office_id === o.id), mgr = mem.find(p => p.role === 'manager');
         const st = calcState(o, now), end = Math.max(Date.parse(o.trial_ends_at), o.paid_until ? Date.parse(o.paid_until) : 0);
         const left = Math.ceil((end - now) / DAY);
+        const planLabel = o.plan_id || 'p1';
+        const planName = (typeof MK_OFFICE_PLANS !== 'undefined' && MK_OFFICE_PLANS[planLabel]) ? MK_OFFICE_PLANS[planLabel].name : planLabel;
+        const fMB = o.file_limit_bytes != null ? Math.round(o.file_limit_bytes / (1024 * 1024)) : '—';
+        const dMB = o.db_limit_bytes != null ? Math.round(o.db_limit_bytes / (1024 * 1024)) : '—';
         const row = el('div'); row.className = 'dq-user-row';
-        const info = el('div'); info.append(el('strong', o.name));
-        const meta = el('div', 'المدير: ' + (mgr ? mgr.full_name + ' (' + mgr.username + ')' : '—') + ' · ' + mem.length + ' حساب · الحالة: ' +
-          (o.active === false ? 'موقوف يدويًا' : STATE_AR[st]) + ' · ينتهي: ' + fmtDate(end) + (left >= 0 ? ' (باقي ' + left + ' يوم)' : ' (منتهٍ)'));
+        row.style.cssText = (row.style.cssText || '') + ';border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--card,#fff)';
+        const info = el('div'); info.append(el('strong', o.name, 'font-size:16px'));
+        const meta = el('div', 'المدير: ' + (mgr ? mgr.full_name + ' (' + mgr.username + ')' : '—') + ' · ' + mem.length + ' حساب · ' +
+          (o.active === false ? 'موقوف' : STATE_AR[st]) + ' · ينتهي: ' + fmtDate(end) + (left >= 0 ? ' (باقي ' + left + ' يوم)' : ' (منتهٍ)'), 'font-size:13px;margin-top:4px');
         meta.className = 'dq-user-meta'; info.append(meta);
+        info.append(el('div', 'الباقة: ' + planName + ' · مستندات: ' + fMB + ' ميجا · بيانات: ' + dMB + ' ميجا', 'font-size:12px;margin-top:4px;opacity:.85'));
         const ac = accs && accs.find(x => x.office_id === o.id);
         if (accs) {
-          const al = el('div', ac ? '✅ وافق على الشروط وسياسة الخصوصية (إصدار ' + ac.doc_version + ') — ' + fmtDate(ac.accepted_at) + (ac.ip ? ' · IP ' + ac.ip : '')
-            : 'لا يوجد سجل موافقة (مكتب أُنشئ قبل تفعيل الميزة)', 'font-size:12px;margin-top:3px;color:' + (ac ? '#15803d' : '#b45309'));
-          info.append(al);
+          info.append(el('div', ac ? '✅ موافقة على الشروط — ' + fmtDate(ac.accepted_at) : 'لا سجل موافقة', 'font-size:12px;margin-top:3px;color:' + (ac ? '#15803d' : '#b45309')));
         }
-        const act = el('div', null, 'display:flex;gap:6px;flex-wrap:wrap');
+        const act = el('div', null, 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px');
         if (ac) act.append(obtn('سند الموافقة', () => showEvidence(ac.id)));
-        act.append(obtn('تجديد', () => mkRenew(o.id), 'btn-primary'), obtn('تعيين الباقة', () => mkSetOfficePlan(o.id), 'btn-primary'),
-          obtn('الدفعات', () => mkPays(o.id)), obtn('تصحيح التواريخ', () => mkAdjust(o.id)),
-          obtn(o.active ? 'إيقاف يدوي' : 'إلغاء الإيقاف', () => window.mkToggleOffice(o.id, !o.active)));
+        act.append(
+          obtn('تجديد الاشتراك', () => mkRenew(o.id), 'btn-primary'),
+          obtn('الباقة والمساحة', () => mkSetOfficePlan(o.id), 'btn-primary'),
+          obtn('مساحة فقط', () => mkSetOfficeStorage(o.id)),
+          obtn('الدفعات', () => mkPays(o.id)),
+          obtn('التواريخ', () => mkAdjust(o.id)),
+          obtn(o.active ? 'إيقاف' : 'تفعيل', () => window.mkToggleOffice(o.id, !o.active), o.active ? 'btn-danger' : 'btn-primary')
+        );
         info.style.flex = '1';
         row.append(info, act);
-        if (window.MK_AV) row.insertBefore(window.MK_AV.badge(o.logo, o.name, 44), info);   // لوجو المكتب
-        row.firstElementChild.style.marginInlineEnd = '10px'; list.append(row);
+        if (window.MK_AV) row.insertBefore(window.MK_AV.badge(o.logo, o.name, 44), info);
+        list.append(row);
       });
     } catch (e) { list.textContent = friendly(e); }
+  }
+  function mkSetOfficeStorage(id) {
+    const o = ownerOffices.find(x => x.id === id); if (!o) return;
+    const curF = o.file_limit_bytes != null ? Math.round(o.file_limit_bytes / (1024 * 1024)) : 250;
+    const curD = o.db_limit_bytes != null ? Math.round(o.db_limit_bytes / (1024 * 1024)) : 50;
+    const files = inp('number', 'ميجا المستندات'); files.value = String(curF);
+    const db = inp('number', 'ميجا بيانات القضايا'); db.value = String(curD);
+    const note = inp('text', 'ملاحظة للمكتب');
+    const body = el('div');
+    body.append(el('p', 'عدّل مساحة المستندات و/أو بيانات القضايا مباشرة. يُرسل إشعار للمكتب داخل التطبيق.', 'font-size:13px;opacity:.8;margin-bottom:8px'));
+    body.append(fld('مساحة المستندات (ميجا)', files), fld('مساحة بيانات القضايا (ميجا)', db), fld('ملاحظة', note));
+    mkModal('ضبط المساحة: ' + o.name, body, 'حفظ وإشعار المكتب', async () => {
+      const f = parseInt(files.value, 10), d = parseInt(db.value, 10);
+      if (!(f > 0) || !(d > 0)) { alert('أدخل قيمًا صحيحة بالميجا.'); return false; }
+      const planId = o.plan_id || 'p1';
+      const addons = o.addon_ids || [];
+      try {
+        await rpc('set_office_plan', {
+          p_office_id: id, p_plan_id: planId, p_addon_ids: addons,
+          p_custom_files_mb: Math.max(0, f - (planId === 'p3' ? 900 : planId === 'p2' ? 450 : 250)),
+          p_custom_db_mb: Math.max(0, d - (planId === 'p3' ? 100 : 50)),
+          p_announce: true, p_note: note.value || ('مستندات ' + f + ' ميجا / بيانات ' + d + ' ميجا')
+        });
+      } catch (e) {
+        // fallback: إشعار فقط + لا حصة سيرفر
+        await rpc('create_announcement', {
+          p_title: 'تعديل مساحة التخزين',
+          p_body: 'عدّل المالك مساحة مكتبك:\nمستندات: ' + f + ' ميجا\nبيانات: ' + d + ' ميجا' +
+            (note.value ? '\n' + note.value : '') +
+            '\n\n[[MK_PLAN_DECISION]]' + JSON.stringify({ approved: true, planId, customFilesMB: f, customDbMB: d, at: new Date().toISOString() }),
+          p_severity: 'info', p_target_office_id: id
+        });
+        console.warn(e);
+      }
+      alert('تم تحديث المساحة وإشعار المكتب.');
+      renderOwner();
+    });
   }
   function mkRenew(id) {
     const o = ownerOffices.find(x => x.id === id); if (!o) return;
@@ -1345,39 +1462,45 @@
       const planName = (plans.find(p => p.id === planSel.value) || {}).name || planSel.value;
       const cFiles = parseInt(customFiles.value, 10) || 0;
       const cDb = parseInt(customDb.value, 10) || 0;
-      const payload = {
-        planId: planSel.value, addonIds, approved,
-        customFilesMB: cFiles, customDbMB: cDb,
-        at: new Date().toISOString()
-      };
-      const marker = '[[MK_PLAN_DECISION]]' + JSON.stringify(payload);
-      let title, text;
-      if (!approved) {
-        title = 'رفض طلب تعديل الباقة/المساحة';
-        text = 'تم رفض طلب تعديل الباقة أو المساحة.' + (note.value ? '\nالسبب: ' + note.value : '') + '\n\n' + marker;
+      if (approved) {
+        // يضبط الحصة على السيرفر + إشعار (migration-09). إن فشل نرجع للإشعار فقط.
+        try {
+          await rpc('set_office_plan', {
+            p_office_id: id,
+            p_plan_id: planSel.value,
+            p_addon_ids: addonIds,
+            p_custom_files_mb: cFiles,
+            p_custom_db_mb: cDb,
+            p_announce: true,
+            p_note: note.value || null
+          });
+        } catch (e) {
+          const payload = { planId: planSel.value, addonIds, approved: true, customFilesMB: cFiles, customDbMB: cDb, at: new Date().toISOString() };
+          await rpc('create_announcement', {
+            p_title: 'تحديث اشتراك مكتبك: «' + planName + '»',
+            p_body: 'قام المالك بتحديث باقة/مساحة مكتبك.\nالباقة: ' + planName + '\n' +
+              (cFiles || cDb ? ('مخصصة: ' + cFiles + '/' + cDb + ' ميجا\n') : '') +
+              '\n[[MK_PLAN_DECISION]]' + JSON.stringify(payload),
+            p_severity: 'info', p_target_office_id: id
+          });
+          console.warn('set_office_plan fallback', e);
+        }
       } else {
-        title = 'تحديث اشتراك مكتبك: «' + planName + '»';
-        text = 'قام المالك بتحديث باقة/مساحة مكتبك داخل التطبيق.\n'
-          + 'الباقة: ' + planName + '\n'
-          + (addonIds.length ? 'إضافات: ' + addonIds.join(', ') + '\n' : '')
-          + (cFiles || cDb ? ('مساحة مخصصة: مستندات ' + cFiles + ' ميجا / بيانات ' + cDb + ' ميجا\n') : '')
-          + (note.value ? 'ملاحظة: ' + note.value + '\n' : '')
-          + '\n' + marker;
+        const payload = { planId: planSel.value, addonIds, approved: false, at: new Date().toISOString() };
+        await rpc('create_announcement', {
+          p_title: 'رفض طلب تعديل الباقة/المساحة',
+          p_body: 'تم رفض طلب تعديل الباقة أو المساحة.' + (note.value ? '\nالسبب: ' + note.value : '') +
+            '\n\n[[MK_PLAN_DECISION]]' + JSON.stringify(payload),
+          p_severity: 'warning', p_target_office_id: id
+        });
       }
-      await rpc('create_announcement', {
-        p_title: title,
-        p_body: text,
-        p_severity: approved ? 'info' : 'warning',
-        p_target_office_id: id
-      });
-      // تحديث حالة الطلب في صندوق الوارد المحلي
       try {
         let inbox = JSON.parse(localStorage.getItem('mk_owner_inbox') || '[]');
         inbox = inbox.map(r => (r.officeId === id || r.officeName === o.name) && r.status === 'pending'
           ? Object.assign({}, r, { status: approved ? 'approved' : 'rejected' }) : r);
         localStorage.setItem('mk_owner_inbox', JSON.stringify(inbox));
       } catch (_) { }
-      alert(approved ? 'تم التحديث وإشعار المكتب داخل التطبيق.' : 'تم إرسال قرار الرفض للمكتب داخل التطبيق.');
+      alert(approved ? 'تم تحديث الباقة/الحصة وإشعار المكتب.' : 'تم إرسال قرار الرفض للمكتب.');
       renderOwner();
     });
   }
