@@ -98,102 +98,80 @@
     if (validUser(raw)) return raw;
     return null;
   }
-  function genOtp() { return String(Math.floor(100000 + Math.random() * 900000)); }
-  async function hashOtp(code, salt) {
+  async function activationApi(body, token) {
+    let res;
     try {
-      if (window.crypto && crypto.subtle) {
-        const bytes = new TextEncoder().encode(String(salt) + '|' + String(code));
-        const dig = await crypto.subtle.digest('SHA-256', bytes);
-        return Array.from(new Uint8Array(dig)).map(b => b.toString(16).padStart(2, '0')).join('');
-      }
-    } catch (e) { }
-    return 'x-' + String(code) + '-' + String(salt);
-  }
-  function otpStore() { return LS.get('mk_otp_store', {}); }
-  function otpSave(map) { LS.set('mk_otp_store', map); }
-  async function issueOtp(kind, username, channel, dest) {
-    const code = genOtp();
-    const salt = b64e(crypto.getRandomValues(new Uint8Array(8)));
-    const map = otpStore();
-    map[username + ':' + kind] = { hash: await hashOtp(code, salt), salt, exp: Date.now() + 15 * 60 * 1000, channel, dest, tries: 0 };
-    otpSave(map);
-    return code;
-  }
-  async function verifyOtp(kind, username, code) {
-    const map = otpStore();
-    const rec = map[username + ':' + kind];
-    if (!rec) return false;
-    if (Date.now() > rec.exp) { delete map[username + ':' + kind]; otpSave(map); return false; }
-    rec.tries = (rec.tries || 0) + 1;
-    if (rec.tries > 8) { delete map[username + ':' + kind]; otpSave(map); return false; }
-    otpSave(map);
-    const ok = (await hashOtp(String(code).trim(), rec.salt)) === rec.hash;
-    if (ok) { delete map[username + ':' + kind]; otpSave(map); }
-    return ok;
-  }
-  /** إرسال مجاني 100%: واتساب لنفس الرقم + بريد عبر تطبيق الجهاز + نسخ/مشاركة — بلا بوابات مدفوعة */
-  function waPhone(phone) {
-    let p = normPhone(phone).replace(/^\+/, '');
-    if (/^01[0125]\d{8}$/.test(p)) p = '20' + p.slice(1);
-    return p;
-  }
-  function deliverOtpFree(code, { email, phone, purpose }) {
-    const title = purpose || 'كود التحقق — مكتبي';
-    const body = title + '\n\nالكود: ' + code + '\nصالح لمدة 15 دقيقة.\nلا تشاركه مع أحد.';
-    return new Promise(resolve => {
-      const ov = document.createElement('div');
-      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl';
-      const card = document.createElement('div');
-      card.style.cssText = 'background:var(--card,#fff);color:var(--text,#111);border-radius:14px;padding:20px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25)';
-      card.innerHTML = '<h3 style="margin:0 0 8px;font-size:17px">كود التحقق (مجاني)</h3>' +
-        '<p style="margin:0 0 12px;font-size:13px;opacity:.8">بدون رسائل مدفوعة. اختر طريقة مجانية لإيصال الكود لنفسك، أو انسخه مباشرة.</p>' +
-        '<div style="font-size:28px;font-weight:700;letter-spacing:6px;text-align:center;padding:12px;background:rgba(0,0,0,.06);border-radius:10px;margin-bottom:14px;direction:ltr">' + code + '</div>' +
-        '<div id="mkOtpActions" style="display:flex;flex-direction:column;gap:8px"></div>';
-      ov.appendChild(card);
-      document.body.appendChild(ov);
-      const actions = card.querySelector('#mkOtpActions');
-      const btn = (label, fn, primary) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = primary ? 'btn btn-primary' : 'btn btn-outline';
-        b.style.cssText = 'width:100%;justify-content:center;padding:10px';
-        b.textContent = label;
-        b.onclick = fn;
-        actions.appendChild(b);
-        return b;
-      };
-      if (phone) {
-        btn('📱 إرسال لنفسك عبر واتساب (مجاني)', () => {
-          const n = waPhone(phone);
-          window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(body), '_blank');
-        }, true);
-      }
-      if (email) {
-        btn('✉️ فتح البريد لإرسال الكود لنفسك (مجاني)', () => {
-          window.location.href = 'mailto:' + encodeURIComponent(email) +
-            '?subject=' + encodeURIComponent(title) +
-            '&body=' + encodeURIComponent(body);
-        }, !phone);
-      }
-      btn('📋 نسخ الكود', async () => {
-        try { await navigator.clipboard.writeText(code); } catch {
-          const t = document.createElement('textarea'); t.value = code; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
-        }
-        alert('تم نسخ الكود');
+      res = await fetch(BASE + '/functions/v1/manager-activation', {
+        method: 'POST',
+        headers: { apikey: CFG.anonKey, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
-      if (navigator.share) {
-        btn('🔗 مشاركة…', () => { navigator.share({ title, text: body }).catch(() => { }); });
+    } catch (_) { throw netErr(); }
+    let data = null;
+    try { data = await res.json(); } catch (_) { }
+    if (!res.ok) {
+      const key = data && data.error;
+      const messages = {
+        activation_provider_not_configured: 'إعداد إرسال رمز التفعيل غير مكتمل على الخادم. لم يتم تفعيل الحساب؛ يلزم إعداد مزود البريد أو واتساب.',
+        activation_delivery_failed: 'تعذر إرسال رمز التفعيل. لم يتم تفعيل الحساب؛ حاول لاحقًا أو اختر وسيلة أخرى.',
+        activation_rate_limited: 'تم طلب رموز كثيرة. انتظر قليلًا ثم أعد المحاولة.',
+        invalid_or_expired_code: 'الرمز غير صحيح أو انتهت صلاحيته. اطلب رمزًا جديدًا.',
+        activation_backend_not_configured: 'خدمة تفعيل الحساب غير مكتملة الإعداد على الخادم.',
+        manager_activation_required: 'هذا الحساب ينتظر التفعيل.',
+        bad_channel: 'وسيلة التفعيل غير مدعومة.'
+      };
+      throw uerr(messages[key] || 'تعذر إكمال التفعيل. حاول مرة أخرى.');
+    }
+    return data || {};
+  }
+  function pendingActivationMap() { return LS.get('mk_pending_activation', {}); }
+  function setPendingActivation(username, contactEmail, contactPhone) {
+    const pending = pendingActivationMap();
+    pending[username] = { contactEmail: contactEmail || '', contactPhone: contactPhone || '' };
+    LS.set('mk_pending_activation', pending);
+  }
+  function clearPendingActivation(username) {
+    const pending = pendingActivationMap();
+    delete pending[username];
+    LS.set('mk_pending_activation', pending);
+  }
+  async function activateNewManager(r, username, password, contactEmail, contactPhone) {
+    setPendingActivation(username, contactEmail, contactPhone);
+    let channel;
+    if (contactEmail && contactPhone) {
+      const pick = window.prompt('اختر طريقة استلام رمز التفعيل واكتب رقمها:\n1 — البريد الإلكتروني\n2 — واتساب', '1');
+      if (pick === null) throw uerr('تم إيقاف التفعيل. سجّل الدخول لاحقًا من هذا الجهاز لإعادة إرسال الرمز.');
+      if (pick !== '1' && pick !== '2') throw uerr('اكتب 1 للبريد أو 2 لواتساب.');
+      channel = pick === '2' ? 'whatsapp' : 'email';
+    } else channel = contactEmail ? 'email' : 'whatsapp';
+    const destination = channel === 'email' ? contactEmail : contactPhone;
+    const started = await activationApi({ action: 'start', channel, destination }, r.access_token);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = window.prompt('أدخل رمز التفعيل الذي أُرسل إلى ' + (started.masked || 'وسيلة التواصل') + '. الرمز صالح لمدة 10 دقائق.');
+      if (code === null) throw uerr('تم إيقاف التفعيل. سجّل الدخول لاحقًا من هذا الجهاز لإعادة إرسال الرمز.');
+      try {
+        await activationApi({ action: 'verify', challenge_id: started.challenge_id, code: String(code).trim() }, r.access_token);
+        clearPendingActivation(username);
+        await finishLogin(r, username, password);
+        return;
+      } catch (e) {
+        if (!e.user || !/الرمز غير صحيح/.test(e.message)) throw e;
+        if (attempt === 4) throw e;
       }
-      btn('متابعة وإدخال الكود', () => { ov.remove(); resolve(); }, !phone && !email);
-      ov.addEventListener('click', e => { if (e.target === ov) { ov.remove(); resolve(); } });
-    });
+    }
+  }
+  async function resumeManagerActivation(r, username, password) {
+    const pending = pendingActivationMap()[username];
+    if (!pending || (!pending.contactEmail && !pending.contactPhone)) {
+      throw uerr('هذا الحساب لم يكتمل تفعيله. أعد التسجيل من الجهاز الذي أدخلت عليه بيانات التواصل، أو تواصل مع الدعم.');
+    }
+    await activateNewManager(r, username, password, pending.contactEmail, pending.contactPhone);
   }
 
   (function clearObsoleteResetArtifacts() {
     LS.set('mk_pending_reset_user', null);
-    const codes = LS.get('mk_otp_store', {});
-    for (const key of Object.keys(codes)) if (key.endsWith(':reset')) delete codes[key];
-    LS.set('mk_otp_store', codes);
+    // Remove any legacy client-generated OTPs. New activation challenges exist only on the server.
+    LS.set('mk_otp_store', {});
   })();
 
   let session = LS.get('mk_session', null);
@@ -647,6 +625,11 @@
       }
       throw e;
     }
+    const profile = (await api('/rest/v1/profiles?user_id=eq.' + r.user.id + '&select=role,active,extra', { token: r.access_token }))[0];
+    if (profile && profile.role === 'manager' && profile.active === false && profile.extra && profile.extra.activationRequired === true) {
+      await resumeManagerActivation(r, username, password);
+      return;
+    }
     await finishLogin(r, username, password);
   }
   async function offlineLogin(username, password) {
@@ -681,34 +664,16 @@
       } else throw e;
     }
     if (!r || !r.access_token) throw uerr('إعداد الخادم: عطّل خيار «Confirm email» من Authentication ← Providers ← Email ثم أعد المحاولة.');
-    saveSession(r);
     const exist = await api('/rest/v1/profiles?user_id=eq.' + r.user.id + '&select=user_id', { token: r.access_token });
     if (exist.length) throw uerr('هذا الحساب موجود بالفعل. استخدم «تسجيل الدخول».');
     await api('/rest/v1/rpc/create_office_v2', { method: 'POST', token: r.access_token,
       body: { p_office_name: office, p_full_name: name, p_username: username, p_permissions: DQ_MODULES.map(m => m[0]),
         p_policy_version: consent.version, p_policy_hash: consent.hash, p_policy_text: consent.text, p_client_info: consent.info } });
-    // حفظ وسائل التواصل في extra عبر update_member إن أمكن، وإلا في التخزين المحلي
-    const contactExtra = { contactEmail, contactPhone, emailVerified: false, phoneVerified: false };
-    try {
-      const prof0 = (await api('/rest/v1/profiles?user_id=eq.' + r.user.id + '&select=*', { token: r.access_token }))[0];
-      if (prof0) {
-        const merged = Object.assign({}, prof0.extra || {}, contactExtra);
-        // لا توجد سياسة update مباشرة؛ نُبقي في الأوفلاين وفي الذاكرة
-        prof0.extra = merged;
-        await finishLogin(r, username, pw);
-        const all = LS.get('mk_offline_auth', {});
-        if (all[username] && all[username].profile) {
-          all[username].profile.extra = merged;
-          all[username].contactEmail = contactEmail;
-          all[username].contactPhone = contactPhone;
-          LS.set('mk_offline_auth', all);
-        }
-        const code = await issueOtp('verify', username, contactEmail ? 'email' : 'phone', contactEmail || contactPhone);
-        await deliverOtpFree(code, { email: contactEmail, phone: contactPhone, purpose: 'تفعيل الحساب — مكتبي' });
-        return;
-      }
-    } catch (e) { console.warn(e); }
-    await finishLogin(r, username, pw);
+    const prof0 = (await api('/rest/v1/profiles?user_id=eq.' + r.user.id + '&select=role,active,extra', { token: r.access_token }))[0];
+    if (!prof0 || prof0.role !== 'manager' || prof0.active !== false || !prof0.extra || prof0.extra.activationRequired !== true) {
+      throw uerr('إعداد التفعيل الآمن غير مكتمل. لم يتم إدخال الحساب إلى التطبيق.');
+    }
+    await activateNewManager(r, username, pw, contactEmail, contactPhone);
   }
   async function finishLogin(r, username, password) {
     saveSession(r);
