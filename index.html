@@ -1350,6 +1350,50 @@ body { background:var(--bg); color:var(--text); }
       .mk-stacked-actions { gap: 4px; }
       #page-tasks #tasksTable, #page-bailiffs #bailiffsTable, #page-poas #poasTable { min-width: 100% !important; table-layout: fixed; }
     }
+
+/* Fix compact list rendering: keep cell counts aligned and preserve all content visibly. */
+.mk-single-column-table {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+}
+.mk-single-column-table th { white-space: normal !important; }
+.mk-single-column-table td.mk-stack-cell {
+  width: 100% !important; min-width: 0 !important; max-width: none !important;
+  white-space: normal !important; overflow-wrap: anywhere; vertical-align: top;
+}
+.mk-single-column-table .mk-stacked-record { width: 100%; min-width: 0; }
+.mk-single-column-table .mk-stacked-line,
+.mk-single-column-table .case-submeta {
+  max-width: 100%; white-space: normal !important; overflow-wrap: anywhere; word-break: normal;
+}
+.mk-cases-table {
+  min-width: 1080px !important; width: 100% !important; max-width: none !important;
+  table-layout: fixed !important;
+}
+.mk-cases-table th, .mk-cases-table td {
+  white-space: normal !important; overflow-wrap: anywhere; word-break: normal; vertical-align: top;
+}
+.mk-cases-table th:nth-child(1), .mk-cases-table td:nth-child(1) { width: 20%; }
+.mk-cases-table th:nth-child(2), .mk-cases-table td:nth-child(2) { width: 17%; }
+.mk-cases-table th:nth-child(3), .mk-cases-table td:nth-child(3) { width: 13%; }
+.mk-cases-table th:nth-child(4), .mk-cases-table td:nth-child(4) { width: 14%; }
+.mk-cases-table th:nth-child(5), .mk-cases-table td:nth-child(5) { width: 10%; }
+.mk-cases-table th:nth-child(6), .mk-cases-table td:nth-child(6) { width: 13%; }
+.mk-cases-table th:nth-child(7), .mk-cases-table td:nth-child(7) { width: 13%; }
+.mk-cases-table td.mk-stack-cell { min-width: 0 !important; }
+.mk-cases-table .mk-case-subject strong {
+  display: block; max-width: 100%; font-size: clamp(11px, .95vw, 14px);
+  line-height: 1.55; white-space: normal; overflow-wrap: anywhere;
+}
+.mk-cases-table .case-submeta { display: block; max-width: 100%; white-space: normal !important; overflow-wrap: anywhere; }
+.mk-cases-table .mk-stacked-record, .mk-cases-table .mk-stacked-actions { max-width: 100%; min-width: 0; }
+@media (max-width: 760px) {
+  .mk-cases-table { min-width: 1080px !important; }
+  .mk-single-column-table td.mk-stack-cell { min-width: 0 !important; }
+}
+
 </style>
 </head>
 <body>
@@ -1525,7 +1569,7 @@ body { background:var(--bg); color:var(--text); }
       <div class="card mk-responsive-table">
         <div class="card-body no-pad">
           <div class="table-wrap">
-            <table>
+            <table class="mk-single-column-table">
               <thead>
                 <tr><th>العملاء</th></tr>
               </thead>
@@ -1588,7 +1632,7 @@ body { background:var(--bg); color:var(--text); }
       <div class="card mk-responsive-table">
         <div class="card-body no-pad">
           <div class="table-wrap">
-            <table>
+            <table class="mk-cases-table">
               <thead>
                 <tr><th>رقم القضية</th><th>الموضوع</th><th>الموكل</th><th>الخصوم</th><th>المرحلة</th><th>آخر نتيجة</th><th>الجلسة القادمة</th></tr>
               </thead>
@@ -1612,7 +1656,7 @@ body { background:var(--bg); color:var(--text); }
         <button class="btn btn-outline" onclick="openBailiffReceiptTask()">✅ + مهمة استلام محضرين</button>
       </div>
       <div class="card"><div class="card-body no-pad">
-        <div class="table-wrap"><table>
+        <div class="table-wrap"><table class="mk-single-column-table">
           <thead><tr><th>رقم المحضرين</th></tr></thead>
           <tbody id="bailiffsTable"></tbody></table></div>
         <div class="empty-state" id="bailiffsEmpty"><div class="icon">📨</div><p>لا توجد أرقام محضرين</p></div>
@@ -1715,7 +1759,7 @@ body { background:var(--bg); color:var(--text); }
       <div class="card">
         <div class="card-body no-pad">
           <div class="table-wrap">
-            <table>
+            <table class="mk-single-column-table">
               <thead><tr><th>المهام</th></tr></thead>
               <tbody id="tasksTable"></tbody>
             </table>
@@ -1741,7 +1785,7 @@ body { background:var(--bg); color:var(--text); }
       <div class="card">
         <div class="card-body no-pad">
           <div class="table-wrap">
-            <table>
+            <table class="mk-single-column-table">
               <thead><tr><th>رقم التوكيل</th></tr></thead>
               <tbody id="poasTable"></tbody>
             </table>
@@ -3063,10 +3107,12 @@ function renderClients() {
       <div class="mk-stacked-record">
         <strong class="mk-stacked-primary" style="cursor:pointer;color:var(--accent);" onclick="viewClient('${c.id}')">${esc(c.name)}${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</strong>
         <span class="case-submeta" style="direction:ltr;align-self:flex-start">${esc(code)}</span>
-        <span class="mk-stacked-line">${esc(c.phone) || '—'}</span>
-        ${c.email ? `<span class="mk-stacked-line">${esc(c.email)}</span>` : ''}
-        <span class="mk-stacked-line"><span class="badge badge-blue">${esc(c.type)}</span> <span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></span>
-        <span class="mk-stacked-line">${cnt} · ${next} · ${formatDate(c.createdAt)}</span>
+        <span class="mk-stacked-line">☎ ${esc(c.phone) || '—'}</span>
+        <span class="mk-stacked-line">✉ ${esc(c.email) || '—'}</span>
+        <span class="mk-stacked-line"><span class="badge badge-blue">${esc(c.type) || '—'}</span> <span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></span>
+        <span class="mk-stacked-line">⚖️ ${cnt}</span>
+        <span class="mk-stacked-line">📅 ${next}</span>
+        <span class="mk-stacked-line">➕ ${formatDate(c.createdAt) || '—'}</span>
         <div class="mk-stacked-actions">
           <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
           <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${c.id}')">واتساب الحساب</button>
@@ -3082,10 +3128,12 @@ function renderClients() {
     return `<div class="mk-data-card ${end ? 'dq-row-ended' : ''}">
       <div class="mk-card-title" onclick="viewClient('${c.id}')">${esc(c.name)}${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</div>
       <div class="case-submeta" style="direction:ltr">${esc(c.code || '—')}</div>
-      <div class="mk-card-row">${esc(c.phone) || '—'}</div>
-      ${c.email ? `<div class="mk-card-row">${esc(c.email)}</div>` : ''}
-      <div class="mk-card-row"><span class="badge badge-blue">${esc(c.type)}</span> <span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div>
-      <div class="mk-card-row">${cnt} · ${next} · ${formatDate(c.createdAt)}</div>
+      <div class="mk-card-row">☎ ${esc(c.phone) || '—'}</div>
+      <div class="mk-card-row">✉ ${esc(c.email) || '—'}</div>
+      <div class="mk-card-row"><span class="badge badge-blue">${esc(c.type) || '—'}</span> <span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div>
+      <div class="mk-card-row">⚖️ ${cnt}</div>
+      <div class="mk-card-row">📅 ${next}</div>
+      <div class="mk-card-row">➕ ${formatDate(c.createdAt) || '—'}</div>
       <div class="mk-card-actions">
         <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
         <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${c.id}')">واتساب الحساب</button>
@@ -3623,12 +3671,12 @@ function caseRowHTML(c, clients, ctx) {
           <div class="mk-stacked-actions">${actions}</div>
         </div>
       </td>
-      <td><strong>${esc(c.subject)}</strong>${si.last && si.last.prep ? `<span class="case-submeta">آخر طلبات/تحضير: ${esc(si.last.prep)}</span>` : ''}</td>
-      <td>${client ? `<strong>${esc(client.name)}</strong><span class="case-submeta">ملف الموكل</span>` : '<span class="case-submeta">قضية مستقلة</span>'}</td>
-      <td>${esc(opponentsText(c)) || '—'}</td>
-      <td>${esc(c.stage) || '—'}</td>
-      <td>${si.last ? esc(si.last.outcome) : '—'}</td>
-      <td>${si.next ? esc(si.next.date) : '—'}</td>
+      <td class="mk-case-subject"><strong>${esc(c.subject) || '—'}</strong>${si.last && si.last.prep ? `<span class="case-submeta">آخر طلبات/تحضير: ${esc(si.last.prep)}</span>` : ''}</td>
+      <td class="mk-case-client">${client ? `<strong>${esc(client.name)}</strong><span class="case-submeta">ملف الموكل</span>` : '<span class="case-submeta">قضية مستقلة</span>'}</td>
+      <td class="mk-case-opponents">${esc(opponentsText(c)) || '—'}</td>
+      <td class="mk-case-stage">${esc(c.stage) || '—'}</td>
+      <td class="mk-case-outcome">${si.last ? esc(si.last.outcome) : '—'}</td>
+      <td class="mk-case-next">${si.next ? esc(si.next.date) : '—'}</td>
     </tr>`;
 }
 
@@ -3650,7 +3698,7 @@ function clientCasesSectionHTML(clientId) {
       <button class="btn btn-outline" onclick="printClientCasesReport('${clientId}','latest')">طباعة آخر المستجدات</button>
     </div>
     <div class="card"><div class="card-body no-pad">
-      <div class="table-wrap"><table>
+      <div class="table-wrap"><table class="mk-cases-table">
         <thead><tr><th>رقم القضية</th><th>الموضوع</th><th>الموكل</th><th>الخصوم</th><th>المرحلة</th><th>آخر نتيجة</th><th>الجلسة القادمة</th></tr></thead>
         <tbody id="clientCasesTable"></tbody></table></div>
       <div class="empty-state" id="clientCasesEmpty" style="display:none"><div class="icon">📁</div><p>لا توجد قضايا</p></div>
@@ -4197,10 +4245,10 @@ function renderTasks() {
     return `<tr style="${done ? 'opacity:0.55;' : ''}"><td class="mk-stack-cell">
       <div class="mk-stacked-record">
         <strong class="mk-stacked-primary" style="cursor:pointer;color:var(--accent);${done ? 'text-decoration:line-through;' : ''}" onclick="DQ_DETAILS.open('task','${t.id}')">${esc(t.title)}</strong>
-        ${t.notes ? `<span class="case-submeta">${esc(t.notes).slice(0,80)}</span>` : ''}
-        <span class="mk-stacked-line">${c ? esc(c.number) : '—'}</span>
-        <span class="mk-stacked-line">${esc(t.assignee) || '—'}</span>
-        <span class="mk-stacked-line">${esc(t.due) || '—'} ${late ? '<span class="badge badge-red">متأخرة</span>' : (t.due === today && !done ? '<span class="badge badge-yellow">اليوم</span>' : '')}</span>
+        ${t.notes ? `<span class="case-submeta">${esc(t.notes)}</span>` : ''}
+        <span class="mk-stacked-line">📁 ${c ? esc(c.number || 'لم يصدر رقم بعد') : '—'}</span>
+        <span class="mk-stacked-line">👤 ${esc(t.assignee) || '—'}</span>
+        <span class="mk-stacked-line">📅 ${esc(t.due) || '—'} ${late ? '<span class="badge badge-red">متأخرة</span>' : (t.due === today && !done ? '<span class="badge badge-yellow">اليوم</span>' : '')}</span>
         <span class="mk-stacked-line"><span class="badge ${done ? 'badge-green' : 'badge-blue'}">${esc(t.status) || '—'}</span> ${t.priority && t.priority !== 'عادية' ? '<span class="badge badge-yellow">' + esc(t.priority) + '</span>' : ''}</span>
         <div class="mk-stacked-actions">
           <button class="btn btn-success btn-sm" onclick="toggleTask('${t.id}')">${done ? 'إعادة فتح' : 'تم'}</button>
