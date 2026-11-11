@@ -1338,7 +1338,19 @@ body { background:var(--bg); color:var(--text); }
   .dashboard-actions-grid { grid-template-columns:1fr; }
 }
 
-  </style>
+  
+    .mk-stack-cell { min-width: 235px; vertical-align: top; }
+    .mk-stacked-record { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; line-height: 1.55; min-width: 0; }
+    .mk-stacked-primary { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+    .mk-stacked-line { display: block; max-width: 100%; overflow-wrap: anywhere; }
+    .mk-stacked-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .mk-stacked-actions .btn { white-space: nowrap; }
+    @media (max-width: 700px) {
+      .mk-stack-cell { min-width: 220px; }
+      .mk-stacked-actions { gap: 4px; }
+      #page-tasks #tasksTable, #page-bailiffs #bailiffsTable, #page-poas #poasTable { min-width: 100% !important; table-layout: fixed; }
+    }
+</style>
 </head>
 <body>
 
@@ -1515,10 +1527,7 @@ body { background:var(--bg); color:var(--text); }
           <div class="table-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>الرقم التعريفي</th><th>الاسم</th><th>الهاتف</th><th>البريد</th><th>النوع</th><th>الحالة</th>
-                  <th>عدد القضايا</th><th>أقرب جلسة / موعد</th><th>تاريخ الإضافة</th><th>إجراءات</th>
-                </tr>
+                <tr><th>العملاء</th></tr>
               </thead>
               <tbody id="clientsTable"></tbody>
             </table>
@@ -1581,10 +1590,7 @@ body { background:var(--bg); color:var(--text); }
           <div class="table-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>رقم القضية</th><th>الموضوع</th><th>الموكل</th><th>الخصوم</th>
-                  <th>المحكمة</th><th>النوع</th><th>المرحلة</th><th>الحالة</th><th>آخر نتيجة</th><th>الجلسة القادمة</th><th>إجراءات</th>
-                </tr>
+                <tr><th>رقم القضية</th><th>الموضوع</th><th>الموكل</th><th>الخصوم</th><th>المرحلة</th><th>آخر نتيجة</th><th>الجلسة القادمة</th></tr>
               </thead>
               <tbody id="casesTable"></tbody>
             </table>
@@ -1607,7 +1613,7 @@ body { background:var(--bg); color:var(--text); }
       </div>
       <div class="card"><div class="card-body no-pad">
         <div class="table-wrap"><table>
-          <thead><tr><th>رقم المحضرين</th><th>تاريخ التسليم</th><th>الدائرة</th><th>القضية</th><th>الموكل</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>رقم المحضرين</th></tr></thead>
           <tbody id="bailiffsTable"></tbody></table></div>
         <div class="empty-state" id="bailiffsEmpty"><div class="icon">📨</div><p>لا توجد أرقام محضرين</p></div>
       </div></div>
@@ -1643,9 +1649,9 @@ body { background:var(--bg); color:var(--text); }
         <button class="btn btn-outline" onclick="shiftAgenda(1)">التالي →</button>
         <button class="btn btn-outline" onclick="agendaToday()">اليوم</button>
         <select class="filter-select" id="agendaMode" onchange="renderAgenda()">
-          <option value="day">يوم</option>
+          <option value="month" selected>شهر</option>
           <option value="week">أسبوع</option>
-          <option value="month">شهر</option>
+          <option value="day">يوم</option>
         </select>
         <button class="btn btn-primary" onclick="openSessionModal()">+ جلسة</button>
         <button class="btn btn-outline" onclick="openEventModal()">+ موعد</button>
@@ -1710,7 +1716,7 @@ body { background:var(--bg); color:var(--text); }
         <div class="card-body no-pad">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>المهمة</th><th>القضية</th><th>المسؤول</th><th>الاستحقاق</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+              <thead><tr><th>المهام</th></tr></thead>
               <tbody id="tasksTable"></tbody>
             </table>
           </div>
@@ -1736,7 +1742,7 @@ body { background:var(--bg); color:var(--text); }
         <div class="card-body no-pad">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>رقم التوكيل</th><th>صاحب التوكيل (الموكِّل)</th><th>الوكيل</th><th>ملف الموكل المرتبط</th><th>النوع</th><th>تاريخ الإصدار</th><th>تاريخ الانتهاء</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+              <thead><tr><th>رقم التوكيل</th></tr></thead>
               <tbody id="poasTable"></tbody>
             </table>
           </div>
@@ -3052,33 +3058,34 @@ function renderClients() {
   } catch (e) { }
   if (tbody) tbody.innerHTML = rowsInfo.map(({ c, cnt, end, nx }) => {
     const code = c.code || '—';
-    return `<tr class="${end ? 'dq-row-ended' : ''}">
-      <td><strong style="direction:ltr">${esc(code)}</strong></td>
-      <td><strong style="cursor:pointer;color:var(--accent);" onclick="viewClient('${c.id}')">${esc(c.name)}</strong>${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</td>
-      <td>${esc(c.phone)}</td>
-      <td>${esc(c.email)}</td>
-      <td><span class="badge badge-blue">${esc(c.type)}</span></td>
-      <td><span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></td>
-      <td>${cnt}</td>
-      <td>${end ? '—' : nx ? esc(nx) + ' <span class="case-submeta" style="display:inline">' + dqRelDay(nx) + '</span>' : '—'}</td>
-      <td>${formatDate(c.createdAt)}</td>
-      <td class="actions-cell">
-        <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
-        <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${c.id}')">واتساب الحساب</button>
-        <button class="btn btn-outline btn-sm" onclick="printClientReport('${c.id}')">طباعة</button>
-        <button class="btn btn-outline btn-sm" onclick="openClientModal('${c.id}')">تعديل</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
-      </td>
-    </tr>`;
+    const next = end ? '—' : nx ? esc(nx) + ' · ' + dqRelDay(nx) : '—';
+    return `<tr class="${end ? 'dq-row-ended' : ''}"><td class="mk-stack-cell">
+      <div class="mk-stacked-record">
+        <strong class="mk-stacked-primary" style="cursor:pointer;color:var(--accent);" onclick="viewClient('${c.id}')">${esc(c.name)}${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</strong>
+        <span class="case-submeta" style="direction:ltr;align-self:flex-start">${esc(code)}</span>
+        <span class="mk-stacked-line">${esc(c.phone) || '—'}</span>
+        ${c.email ? `<span class="mk-stacked-line">${esc(c.email)}</span>` : ''}
+        <span class="mk-stacked-line"><span class="badge badge-blue">${esc(c.type)}</span> <span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></span>
+        <span class="mk-stacked-line">${cnt} · ${next} · ${formatDate(c.createdAt)}</span>
+        <div class="mk-stacked-actions">
+          <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
+          <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${c.id}')">واتساب الحساب</button>
+          <button class="btn btn-outline btn-sm" onclick="printClientReport('${c.id}')">طباعة</button>
+          <button class="btn btn-outline btn-sm" onclick="openClientModal('${c.id}')">تعديل</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">حذف</button>
+        </div>
+      </div>
+    </td></tr>`;
   }).join('');
   if (cards) cards.innerHTML = rowsInfo.map(({ c, cnt, end, nx }) => {
-    const nextTxt = end ? '—' : (nx ? esc(nx) + ' (' + dqRelDay(nx) + ')' : '—');
+    const next = end ? '—' : (nx ? esc(nx) + ' · ' + dqRelDay(nx) : '—');
     return `<div class="mk-data-card ${end ? 'dq-row-ended' : ''}">
       <div class="mk-card-title" onclick="viewClient('${c.id}')">${esc(c.name)}${end ? ' <span class="badge badge-red">جميع قضاياه منتهية</span>' : ''}</div>
-      <div class="mk-card-row"><span class="label">الرقم التعريفي:</span><strong style="direction:ltr">${esc(c.code || '—')}</strong></div>
-      <div class="mk-card-row"><span class="label">الهاتف:</span>${esc(c.phone) || '—'} <span class="label">النوع:</span><span class="badge badge-blue">${esc(c.type)}</span> <span class="label">الحالة:</span><span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div>
-      <div class="mk-card-row"><span class="label">القضايا:</span>${cnt} <span class="label">أقرب موعد:</span>${nextTxt} <span class="label">أُضيف:</span>${formatDate(c.createdAt)}</div>
-      ${c.email ? `<div class="mk-card-row"><span class="label">البريد:</span>${esc(c.email)}</div>` : ''}
+      <div class="case-submeta" style="direction:ltr">${esc(c.code || '—')}</div>
+      <div class="mk-card-row">${esc(c.phone) || '—'}</div>
+      ${c.email ? `<div class="mk-card-row">${esc(c.email)}</div>` : ''}
+      <div class="mk-card-row"><span class="badge badge-blue">${esc(c.type)}</span> <span class="badge ${clientStatusBadge(c.status || 'نشط')}">${esc(c.status || 'نشط')}</span></div>
+      <div class="mk-card-row">${cnt} · ${next} · ${formatDate(c.createdAt)}</div>
       <div class="mk-card-actions">
         <button class="btn btn-outline btn-sm" onclick="viewClient('${c.id}')">الملف</button>
         <button class="btn btn-outline btn-sm" onclick="whatsappClientCredentials('${c.id}')">واتساب الحساب</button>
@@ -3088,7 +3095,6 @@ function renderClients() {
     </div>`;
   }).join('');
 }
-
 function clientStatusBadge(s) {
   return s === 'نشط' ? 'badge-green' : s === 'موقوف' ? 'badge-yellow' : s === 'محتمل' ? 'badge-purple' : 'badge-blue';
 }
@@ -3598,27 +3604,31 @@ function caseRowHTML(c, clients, ctx) {
   const client = (clients || DB.get('clients')).find(x => x.id === c.clientId);
   const si = caseSessionInfo(c.id);
   const inClient = ctx && ctx.clientId;
-  const pre = '';
   const numDisp = formatCaseNumbersDisplay(c);
-  return `<tr class="${c.status === 'منتهية' ? 'dq-row-ended' : ''}">
-      <td><strong style="cursor:pointer;color:var(--accent);" onclick="${pre}viewCase('${c.id}')">${esc(c.number || 'لم يصدر رقم بعد')}</strong>${(c.numbers && c.numbers.length > 1) ? `<span class="case-submeta">${esc(numDisp)}</span>` : (c.degree ? `<span class="case-submeta">${esc(c.degree)}</span>` : '')}</td>
-      <td><strong>${esc(c.subject)}</strong>${si.last && si.last.prep ? `<span class="case-submeta">آخر طلبات/تحضير: ${esc(si.last.prep)}</span>` : ''}</td>
-      <td>${client ? `<strong>${esc(client.name)}</strong><span class="case-submeta">ملف الموكل</span>` : '<span class="case-submeta">قضية مستقلة</span>'}</td>
-      <td>${esc(opponentsText(c)) || '—'}</td>
-      <td>${esc(c.court)}</td>
-      <td>${esc(c.type)}</td>
-      <td>${esc(c.stage) || '—'}</td>
-      <td><span class="badge ${caseStatusBadgeCls(c.status)}">${esc(c.status)}</span></td>
-      <td>${si.last ? esc(si.last.outcome) : '—'}</td>
-      <td>${si.next ? esc(si.next.date) : '—'}</td>
-      <td class="actions-cell">
-        <button class="btn btn-outline btn-sm" onclick="${pre}viewCase('${c.id}')">عرض</button>
+  const actions = `
+        <button class="btn btn-outline btn-sm" onclick="viewCase('${c.id}')">عرض</button>
         <button class="btn btn-outline btn-sm" onclick="printCaseReport('${c.id}','full')">طباعة كاملة</button>
         <button class="btn btn-outline btn-sm" onclick="printCaseReport('${c.id}','latest')">آخر المستجدات</button>
         <button class="btn btn-outline btn-sm" onclick="openAttachmentsPrint('case','${c.id}')">🖨️ المرفقات</button>
-        <button class="btn btn-outline btn-sm" onclick="${pre}openCaseModal('${c.id}')">تعديل</button>
-        <button class="btn btn-danger btn-sm" onclick="${inClient ? `deleteCase('${c.id}');renderClientCases('${inClient}')` : `deleteCase('${c.id}')`}">حذف</button>
+        <button class="btn btn-outline btn-sm" onclick="openCaseModal('${c.id}')">تعديل</button>
+        <button class="btn btn-danger btn-sm" onclick="${inClient ? `deleteCase('${c.id}');renderClientCases('${inClient}')` : `deleteCase('${c.id}')`}">حذف</button>`;
+  return `<tr class="${c.status === 'منتهية' ? 'dq-row-ended' : ''}">
+      <td class="mk-stack-cell">
+        <div class="mk-stacked-record">
+          <strong class="mk-stacked-primary" style="cursor:pointer;color:var(--accent);" onclick="viewCase('${c.id}')">${esc(c.number || 'لم يصدر رقم بعد')}</strong>
+          ${(c.numbers && c.numbers.length > 1) ? `<span class="case-submeta">${esc(numDisp)}</span>` : (c.degree ? `<span class="case-submeta">${esc(c.degree)}</span>` : '')}
+          <span class="mk-stacked-line">${esc(c.type) || '—'}</span>
+          <span class="mk-stacked-line">${esc(c.court) || '—'}</span>
+          <span class="mk-stacked-line"><span class="badge ${caseStatusBadgeCls(c.status)}">${esc(c.status) || '—'}</span></span>
+          <div class="mk-stacked-actions">${actions}</div>
+        </div>
       </td>
+      <td><strong>${esc(c.subject)}</strong>${si.last && si.last.prep ? `<span class="case-submeta">آخر طلبات/تحضير: ${esc(si.last.prep)}</span>` : ''}</td>
+      <td>${client ? `<strong>${esc(client.name)}</strong><span class="case-submeta">ملف الموكل</span>` : '<span class="case-submeta">قضية مستقلة</span>'}</td>
+      <td>${esc(opponentsText(c)) || '—'}</td>
+      <td>${esc(c.stage) || '—'}</td>
+      <td>${si.last ? esc(si.last.outcome) : '—'}</td>
+      <td>${si.next ? esc(si.next.date) : '—'}</td>
     </tr>`;
 }
 
@@ -3641,7 +3651,7 @@ function clientCasesSectionHTML(clientId) {
     </div>
     <div class="card"><div class="card-body no-pad">
       <div class="table-wrap"><table>
-        <thead><tr><th>رقم القضية</th><th>الموضوع</th><th>الموكل</th><th>الخصوم</th><th>المحكمة</th><th>النوع</th><th>المرحلة</th><th>الحالة</th><th>آخر نتيجة</th><th>الجلسة القادمة</th><th>إجراءات</th></tr></thead>
+        <thead><tr><th>رقم القضية</th><th>الموضوع</th><th>الموكل</th><th>الخصوم</th><th>المرحلة</th><th>آخر نتيجة</th><th>الجلسة القادمة</th></tr></thead>
         <tbody id="clientCasesTable"></tbody></table></div>
       <div class="empty-state" id="clientCasesEmpty" style="display:none"><div class="icon">📁</div><p>لا توجد قضايا</p></div>
     </div></div>
@@ -3707,12 +3717,14 @@ function caseCardHTML(c, clients) {
   const si = caseSessionInfo(c.id);
   const numDisp = formatCaseNumbersDisplay(c);
   return `<div class="mk-data-card ${c.status === 'منتهية' ? 'dq-row-ended' : ''}">
-    <div class="mk-card-title" onclick="viewCase('${c.id}')">${esc(c.number || 'لم يصدر رقم بعد')}${c.degree ? ' · ' + esc(c.degree) : ''}</div>
-    ${(c.numbers && c.numbers.length > 1) ? `<div class="mk-card-row" style="font-size:12px;color:var(--text-muted);">${esc(numDisp)}</div>` : ''}
-    <div class="mk-card-row"><span class="label">الموضوع:</span><strong>${esc(c.subject)}</strong></div>
-    <div class="mk-card-row"><span class="label">الموكل:</span>${client ? esc(client.name) : 'مستقلة'} <span class="label">الخصوم:</span>${esc(opponentsText(c)) || '—'}</div>
-    <div class="mk-card-row"><span class="label">المحكمة:</span>${esc(c.court) || '—'} <span class="label">النوع:</span>${esc(c.type)} <span class="label">المرحلة:</span>${esc(c.stage) || '—'}</div>
-    <div class="mk-card-row"><span class="label">الحالة:</span><span class="badge ${caseStatusBadgeCls(c.status)}">${esc(c.status)}</span> <span class="label">آخر نتيجة:</span>${si.last ? esc(si.last.outcome) : '—'} <span class="label">القادمة:</span>${si.next ? esc(si.next.date) : '—'}</div>
+    <div class="mk-card-title" onclick="viewCase('${c.id}')">${esc(c.number || 'لم يصدر رقم بعد')}</div>
+    ${(c.numbers && c.numbers.length > 1) ? `<div class="case-submeta">${esc(numDisp)}</div>` : (c.degree ? `<div class="case-submeta">${esc(c.degree)}</div>` : '')}
+    <div class="mk-card-row">${esc(c.type) || '—'}</div>
+    <div class="mk-card-row">${esc(c.court) || '—'}</div>
+    <div class="mk-card-row"><span class="badge ${caseStatusBadgeCls(c.status)}">${esc(c.status) || '—'}</span></div>
+    <div class="mk-card-row"><strong>${esc(c.subject)}</strong>${si.last && si.last.prep ? `<span class="case-submeta">${esc(si.last.prep)}</span>` : ''}</div>
+    <div class="mk-card-row">${client ? esc(client.name) : 'مستقلة'} · ${esc(opponentsText(c)) || '—'}</div>
+    <div class="mk-card-row">${esc(c.stage) || '—'} · ${si.last ? esc(si.last.outcome) : '—'} · ${si.next ? esc(si.next.date) : '—'}</div>
     <div class="mk-card-actions">
       <button class="btn btn-outline btn-sm" onclick="viewCase('${c.id}')">عرض</button>
       <button class="btn btn-outline btn-sm" onclick="openCaseModal('${c.id}')">تعديل</button>
@@ -4182,20 +4194,23 @@ function renderTasks() {
     const c = cases.find(x => x.id === t.caseId);
     const done = t.status === 'منتهية';
     const late = !done && t.due && t.due < today;
-    return `<tr style="${done ? 'opacity:0.55;' : ''}">
-      <td><strong style="cursor:pointer;color:var(--accent);${done ? 'text-decoration:line-through;' : ''}" onclick="DQ_DETAILS.open('task','${t.id}')">${esc(t.title)}</strong>${t.priority && t.priority !== 'عادية' ? ' <span class="badge badge-yellow">' + esc(t.priority) + '</span>' : ''}${t.notes ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + esc(t.notes).slice(0,80) + '</div>' : ''}</td>
-      <td>${c ? esc(c.number) : '—'}</td>
-      <td>${esc(t.assignee) || '—'}</td>
-      <td>${esc(t.due) || '—'} ${late ? '<span class="badge badge-red">متأخرة</span>' : (t.due === today && !done ? '<span class="badge badge-yellow">اليوم</span>' : '')}</td>
-      <td><span class="badge ${done ? 'badge-green' : 'badge-blue'}">${esc(t.status)}</span></td>
-      <td class="actions-cell">
-        <button class="btn btn-success btn-sm" onclick="toggleTask('${t.id}')">${done ? 'إعادة فتح' : 'تم'}</button>
-        <button class="btn btn-outline btn-sm" onclick="openTaskModal({id:'${t.id}'})">تعديل</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">حذف</button>
-      </td></tr>`;
+    return `<tr style="${done ? 'opacity:0.55;' : ''}"><td class="mk-stack-cell">
+      <div class="mk-stacked-record">
+        <strong class="mk-stacked-primary" style="cursor:pointer;color:var(--accent);${done ? 'text-decoration:line-through;' : ''}" onclick="DQ_DETAILS.open('task','${t.id}')">${esc(t.title)}</strong>
+        ${t.notes ? `<span class="case-submeta">${esc(t.notes).slice(0,80)}</span>` : ''}
+        <span class="mk-stacked-line">${c ? esc(c.number) : '—'}</span>
+        <span class="mk-stacked-line">${esc(t.assignee) || '—'}</span>
+        <span class="mk-stacked-line">${esc(t.due) || '—'} ${late ? '<span class="badge badge-red">متأخرة</span>' : (t.due === today && !done ? '<span class="badge badge-yellow">اليوم</span>' : '')}</span>
+        <span class="mk-stacked-line"><span class="badge ${done ? 'badge-green' : 'badge-blue'}">${esc(t.status) || '—'}</span> ${t.priority && t.priority !== 'عادية' ? '<span class="badge badge-yellow">' + esc(t.priority) + '</span>' : ''}</span>
+        <div class="mk-stacked-actions">
+          <button class="btn btn-success btn-sm" onclick="toggleTask('${t.id}')">${done ? 'إعادة فتح' : 'تم'}</button>
+          <button class="btn btn-outline btn-sm" onclick="openTaskModal({id:'${t.id}'})">تعديل</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">حذف</button>
+        </div>
+      </div>
+    </td></tr>`;
   }).join('');
 }
-
 // ===================== POWERS OF ATTORNEY =====================
 function daysUntil(iso) {
   if (!iso) return null;
@@ -4310,20 +4325,21 @@ function renderPoas() {
   document.getElementById('poasTable').innerHTML = list.map(p => {
     const cl = clients.find(x => x.id === p.clientId);
     const st = poaState(p);
-    return `<tr>
-      <td><strong>${esc(p.number)}</strong></td>
-      <td><strong>${esc(p.grantor || (cl ? cl.name : '')) || '—'}</strong></td>
-       <td>${esc(p.agent) || '—'}</td>
-       <td>${cl ? esc(cl.name) : '—'}</td>
-      <td>${esc(p.type)}</td>
-      <td>${esc(p.issue) || '—'}</td>
-      <td>${esc(p.expiry) || '—'}</td>
-      <td><span class="badge ${st.cls}">${st.label}</span></td>
-      <td class="actions-cell">${p.attachmentId ? `<button class="btn btn-outline btn-sm" onclick="openAttachment('${p.attachmentId}')">معاينة الملف</button> ` : ''}<button class="btn btn-outline btn-sm" onclick="openPoaModal('${p.id}')">تعديل</button>
-        <button class="btn btn-danger btn-sm" onclick="deletePoa('${p.id}')">حذف</button></td></tr>`;
+    return `<tr><td class="mk-stack-cell">
+      <div class="mk-stacked-record">
+        <strong class="mk-stacked-primary">${esc(p.number) || '—'}</strong>
+        <span class="mk-stacked-line">${esc(p.grantor || (cl ? cl.name : '')) || '—'}</span>
+        <span class="mk-stacked-line">${esc(p.agent) || '—'}</span>
+        <span class="mk-stacked-line">${cl ? esc(cl.name) : '—'}</span>
+        <span class="mk-stacked-line">${esc(p.type) || '—'}</span>
+        <span class="mk-stacked-line">${esc(p.issue) || '—'}</span>
+        <span class="mk-stacked-line">${esc(p.expiry) || '—'}</span>
+        <span class="mk-stacked-line"><span class="badge ${st.cls}">${st.label}</span></span>
+        <div class="mk-stacked-actions">${p.attachmentId ? `<button class="btn btn-outline btn-sm" onclick="openAttachment('${p.attachmentId}')">معاينة الملف</button>` : ''}<button class="btn btn-outline btn-sm" onclick="openPoaModal('${p.id}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deletePoa('${p.id}')">حذف</button></div>
+      </div>
+    </td></tr>`;
   }).join('');
 }
-
 // قائمة توكيلات الموكل داخل نموذج القضية
 function fillPoaOptions(selected) {
   const clientId = document.getElementById('caseClient').value;
@@ -7912,7 +7928,7 @@ function renderBailiffs() {
   const tb = document.getElementById('bailiffsTable'), em = document.getElementById('bailiffsEmpty');
   if (!tb) return;
   const q = (document.getElementById('bailiffSearch')?.value || '').trim().toLowerCase();
-  const st = document.getElementById('bailiffStatusFilter')?.value || '';
+  const st = (document.getElementById('bailiffStatusFilter')?.value || '');
   const cases = DB.get('cases'), clients = DB.get('clients'), today = isoToday();
   let list = DB.get('bailiffs').map(b => ({ b, k: cases.find(c => c.id === b.caseId), cl: clients.find(c => c.id === (b.clientId || (cases.find(c => c.id === b.caseId) || {}).clientId)) }));
   if (q) list = list.filter(({ b, k, cl }) => [b.number, b.office, b.notes, dmy(b.date), b.date, k && k.number, k && k.subject, cl && cl.name].filter(Boolean).join(' ').toLowerCase().includes(q));
@@ -7923,17 +7939,20 @@ function renderBailiffs() {
   tb.innerHTML = list.map(({ b, k, cl }) => {
     const done = b.status === BAILIFF_DONE, t = bailiffTask(b);
     const btn = (act, label, cls) => `<button class="btn ${cls || 'btn-outline'} btn-sm" onclick="bailiffDo('${act}','${b.id}','','')">${label}</button>`;
-    return `<tr class="${!done && b.date && b.date < today ? 'dq-row-late' : ''}" style="${done ? 'opacity:.65' : ''}">
-      <td><strong>${esc(b.number)}</strong><span class="case-submeta">${esc(bailiffLabel(b))}</span></td>
-      <td>${b.date ? esc(dmy(b.date)) : '—'}${b.date === today ? ' <span class="badge badge-yellow">اليوم</span>' : ''}</td>
-      <td>${esc(b.office) || '—'}</td>
-      <td>${k ? `<strong style="cursor:pointer;color:var(--accent)" onclick="viewCase('${k.id}')">${esc(k.number || 'لم يصدر رقم بعد')}</strong><span class="case-submeta">${esc(k.subject)}</span>` : '—'}</td>
-      <td>${cl ? esc(cl.name) : '—'}</td>
-      <td>${bailiffStatusBadge(b)}${t ? '<br><span class="badge badge-purple">له مهمة استلام</span>' : ''}</td>
-      <td class="actions-cell">${t ? '' : btn('task', '➕ مهمة استلام')}${btn('toggle', done ? 'إعادة' : '✓ تم الاستلام', done ? 'btn-outline' : 'btn-success')}${btn('edit', 'تعديل')}${btn('delete', 'حذف', 'btn-danger')}</td></tr>`;
+    return `<tr class="${!done && b.date && b.date < today ? 'dq-row-late' : ''}" style="${done ? 'opacity:.65' : ''}"><td class="mk-stack-cell">
+      <div class="mk-stacked-record">
+        <strong class="mk-stacked-primary">${esc(b.number)}</strong>
+        <span class="case-submeta">${esc(bailiffLabel(b))}</span>
+        <span class="mk-stacked-line">${b.date ? esc(dmy(b.date)) : '—'}${b.date === today ? ' <span class="badge badge-yellow">اليوم</span>' : ''}</span>
+        <span class="mk-stacked-line">${esc(b.office) || '—'}</span>
+        <span class="mk-stacked-line">${k ? `<strong style="cursor:pointer;color:var(--accent)" onclick="viewCase('${k.id}')">${esc(k.number || 'لم يصدر رقم بعد')}</strong> · ${esc(k.subject)}` : '—'}</span>
+        <span class="mk-stacked-line">${cl ? esc(cl.name) : '—'}</span>
+        <span class="mk-stacked-line">${bailiffStatusBadge(b)} ${t ? '<span class="badge badge-purple">له مهمة استلام</span>' : ''}</span>
+        <div class="mk-stacked-actions">${t ? '' : btn('task', '➕ مهمة استلام')}${btn('toggle', done ? 'إعادة' : '✓ تم الاستلام', done ? 'btn-outline' : 'btn-success')}${btn('edit', 'تعديل')}${btn('delete', 'حذف', 'btn-danger')}</div>
+      </div>
+    </td></tr>`;
   }).join('');
 }
-
 // ===================== طباعة المرفقات (اختيارية، وتُطبع مباشرة بدون تنزيل) =====================
 function openAttachmentsPrint(kind, id) {
   const all = DB.get('attachments'), cases = DB.get('cases');
