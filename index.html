@@ -1193,7 +1193,152 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
   #dqAuthGate .form-group{margin:6px 0}
   #dqAuthGate .dq-auth-note{margin:4px 0 6px;font-size:12px;line-height:1.55}
 }
-</style>
+
+/* ===== Maktaby legal dashboard refresh (visual layer only) ===== */
+:root {
+  --primary-brown:#071D2E; --accent-gold:#C9A24A; --bg-beige:#F7F4EE;
+  --card-bg:#FFFFFF; --text-dark:#1D2934; --text-muted:#65717C;
+  --wood-deep:#071D2E; --wood:#071D2E; --wood-mid:#102C42; --wood-soft:#65717C;
+  --beige:#F7F4EE; --beige-deep:#F0ECE4; --cream:#F7F4EE; --ivory:#FFFFFF;
+  --gold:#C9A24A; --gold-bright:#D8B861; --gold-dim:#A9822F;
+  --primary:#071D2E; --primary-light:#102C42; --accent:#C9A24A;
+  --accent-hover:#D8B861; --accent-deep:#A9822F; --bg:#F7F4EE; --card:#FFFFFF;
+  --text:#1D2934; --border:#E7E2D8; --success:#2F6B4F; --danger:#A83A35;
+  --warning:#A66A13; --radius:14px;
+  --shadow:0 3px 14px rgba(7,29,46,.07); --shadow-hover:0 8px 24px rgba(7,29,46,.12);
+}
+:root[data-theme="dark"] {
+  --primary-brown:#101A23; --accent-gold:#D5B45E; --bg-beige:#111820;
+  --card-bg:#1A2530; --text-dark:#E8EDF1; --text-muted:#AAB6C0;
+  --wood-deep:#09121A; --wood:#101A23; --wood-mid:#1A2B39; --wood-soft:#8695A0;
+  --beige:#111820; --beige-deep:#1A2530; --cream:#1A2530; --ivory:#202E39;
+  --gold:#D5B45E; --gold-bright:#E5C875; --gold-dim:#B8943C;
+  --primary:#101A23; --primary-light:#1A2B39; --accent:#D5B45E;
+  --accent-hover:#E5C875; --accent-deep:#B8943C; --bg:#111820; --card:#1A2530;
+  --text:#E8EDF1; --border:#2B3A46; --success:#4A9A70; --danger:#D46A62;
+  --warning:#D5B45E; --shadow:0 3px 18px rgba(0,0,0,.32); --shadow-hover:0 8px 28px rgba(0,0,0,.42);
+}
+body { background:var(--bg); color:var(--text); }
+.sidebar {
+  width:240px !important; background:#071D2E !important; color:#F7F8FA !important;
+  border-left:1px solid rgba(201,162,74,.22) !important;
+}
+.sidebar-header { min-height:82px; padding:18px 18px !important; border-bottom:1px solid rgba(201,162,74,.2) !important; }
+.logo-icon { background:#C9A24A !important; color:#071D2E !important; border:0 !important; border-radius:12px !important; font-size:21px; }
+.logo-text h1 { font-size:16px !important; color:#FFFFFF !important; }
+.logo-text p { color:rgba(231,218,184,.78) !important; font-size:10.5px !important; }
+.nav { padding:12px 10px; }
+.nav-section { color:rgba(201,162,74,.72) !important; font-size:10px; letter-spacing:.35px; }
+.nav-item { min-height:39px; padding:8px 11px !important; margin-bottom:3px; border-radius:9px !important; color:#E6EBEF !important; font-size:13px !important; gap:10px !important; }
+.nav-item .icon { width:22px; font-size:16px !important; }
+.nav-item .badge-count { background:rgba(201,162,74,.17) !important; color:#E6C975 !important; border-radius:999px !important; min-width:22px; text-align:center; }
+.nav-item:hover { background:rgba(255,255,255,.07) !important; }
+.nav-item.active { background:#123149 !important; color:#FFFFFF !important; box-shadow:inset 0 0 0 1px rgba(201,162,74,.78) !important; }
+.nav-item.active .icon { color:#E0BD63 !important; }
+.sidebar-footer { border-top:1px solid rgba(201,162,74,.16) !important; color:rgba(255,255,255,.58) !important; }
+.main { margin-right:240px !important; }
+.topbar {
+  min-height:68px; height:68px; padding:0 24px !important; gap:16px;
+  background:var(--card-bg) !important; border-bottom:1px solid var(--border) !important;
+  box-shadow:0 2px 8px rgba(7,29,46,.025);
+}
+.topbar-title { color:var(--primary) !important; font-size:18px !important; font-weight:800 !important; }
+.topbar-actions { gap:9px !important; }
+.dq-user-pill { border-color:var(--border) !important; color:var(--text) !important; background:var(--bg) !important; }
+.dq-user-pill::before { content:"◉"; color:var(--accent); font-size:15px; }
+#dqLogoutBtn { padding:6px 11px !important; }
+.content { padding:24px !important; background:var(--bg); }
+#page-dashboard .stats-grid { gap:12px; margin:0 0 18px; }
+#page-dashboard .stat-card {
+  min-width:0; padding:15px 14px 14px; border:1px solid #EAE5DC;
+  border-radius:14px; background:#FFFFFF; box-shadow:0 3px 13px rgba(7,29,46,.055);
+  text-align:right; transition:transform .16s ease,box-shadow .2s ease,border-color .2s ease;
+}
+#page-dashboard .stat-card::before { content:""; position:absolute; top:0; right:0; width:3px; height:100%; background:#C9A24A; opacity:.75; }
+#page-dashboard .stat-card:hover { transform:translateY(-2px); border-color:rgba(201,162,74,.7); box-shadow:0 8px 20px rgba(7,29,46,.09); }
+#page-dashboard .stat-card .icon { color:#A9822F; font-size:21px; margin-bottom:7px; }
+#page-dashboard .stat-card .value { color:#071D2E !important; font-size:29px; line-height:1.1; font-weight:800; font-variant-numeric:tabular-nums; }
+#page-dashboard .stat-card .label { color:#65717C; font-size:12px; line-height:1.55; }
+#page-dashboard .two-col { grid-template-columns:1.08fr .92fr; gap:16px; margin-bottom:18px; }
+#page-dashboard .card { background:var(--card-bg); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); }
+#page-dashboard .card-header { min-height:58px; padding:13px 17px; background:var(--card-bg); border-bottom:1px solid var(--border); }
+#page-dashboard .card-header h2 { color:var(--primary); font-size:16px; font-weight:800; }
+#page-dashboard .card-header .btn-primary { background:#F7F2E5 !important; color:#795D22 !important; border:1px solid #E7D7AF !important; box-shadow:none !important; border-radius:8px; }
+#page-dashboard .card-header .btn-primary:hover { background:#EFE3C5 !important; }
+#page-dashboard .table-wrap { border-radius:0 0 14px 14px; }
+#page-dashboard table { border-collapse:separate; border-spacing:0; width:100%; }
+#page-dashboard table thead th { padding:11px 13px; background:#F7F4EE !important; color:#52616D !important; font-size:11.5px; font-weight:700; border-bottom:1px solid var(--border) !important; }
+#page-dashboard table tbody td { padding:11px 13px; border-bottom:1px solid #F0EDE7; color:var(--text); font-size:12.5px; }
+#page-dashboard table tbody tr:last-child td { border-bottom:0; }
+#page-dashboard table tbody tr:hover td { background:#FBF8F1 !important; }
+#page-dashboard .empty-state { padding:24px 12px; color:var(--text-muted); }
+#upcomingAlert { display:grid; gap:8px; margin-bottom:14px; }
+#upcomingAlert:empty { display:none; }
+#upcomingAlert .alert-banner {
+  min-height:42px; padding:9px 13px; margin:0; border-radius:9px;
+  border:1px solid #E6DAB8; border-right:3px solid #C9A24A;
+  background:#FBF7EA; color:#6F5520; font-size:12.5px; line-height:1.6;
+  box-shadow:none;
+}
+#upcomingAlert .alert-info { background:#EFF6FB !important; border-color:#D5E5F1 !important; border-right-color:#5B91B5 !important; color:#315C78 !important; }
+#upcomingAlert .alert-warning { background:#FBF7EA !important; border-color:#E9DDBA !important; border-right-color:#C99A36 !important; color:#70571F !important; }
+#upcomingAlert .alert-success { background:#EEF6F0 !important; border-color:#D5E7D9 !important; border-right-color:#548B64 !important; color:#345B3D !important; }
+#upcomingAlert .alert-urgent { background:#FBEEEE !important; border-color:#EBCFCB !important; border-right-color:#B84940 !important; color:#80352F !important; }
+#page-dashboard .dashboard-action-card { overflow:hidden; }
+#page-dashboard .dashboard-action-card .card-header { min-height:65px; }
+.dashboard-action-heading p { margin-top:3px; color:var(--text-muted); font-size:11.5px; }
+.dashboard-actions-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:11px; padding:15px; }
+.dashboard-action-item {
+  display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:center; gap:10px;
+  min-height:74px; padding:12px; border:1px solid var(--border); border-radius:11px;
+  color:var(--text); text-align:right; font:inherit; cursor:pointer;
+  transition:transform .16s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.dashboard-action-item:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(7,29,46,.08); border-color:#D6C38F; }
+.dashboard-action-item:focus-visible { outline:2px solid #C9A24A; outline-offset:2px; }
+.dashboard-action-item .action-icon { width:36px; height:36px; display:grid; place-items:center; border-radius:10px; font-size:17px; }
+.dashboard-action-item .action-label { font-size:12px; line-height:1.5; font-weight:700; }
+.dashboard-action-item .action-count { color:#071D2E; font-size:23px; font-weight:800; font-variant-numeric:tabular-nums; }
+.dashboard-action-item.action-red { background:#FCF1EF; border-color:#F0DEDA; }
+.dashboard-action-item.action-red .action-icon { background:#F6DFDB; color:#913F36; }
+.dashboard-action-item.action-amber { background:#FBF7EB; border-color:#EEE4C9; }
+.dashboard-action-item.action-amber .action-icon { background:#F3E9C9; color:#876B25; }
+.dashboard-action-item.action-green { background:#F0F6F1; border-color:#DCE9DE; }
+.dashboard-action-item.action-green .action-icon { background:#DFEDE1; color:#446E4B; }
+.dashboard-action-item.action-blue { background:#F0F6FA; border-color:#DBE8F0; }
+.dashboard-action-item.action-blue .action-icon { background:#DDEBF4; color:#416D88; }
+@media (min-width:1280px) {
+  #page-dashboard .stats-grid { grid-template-columns:repeat(6,minmax(0,1fr)); }
+}
+@media (min-width:901px) and (max-width:1279px) {
+  #page-dashboard .stats-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width:1100px) {
+  .dashboard-actions-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:900px) {
+  .sidebar { width:min(290px,86vw) !important; transform:translateX(105%); visibility:hidden; transition:transform .28s ease,visibility 0s linear .28s; }
+  .sidebar.open { transform:translateX(0); visibility:visible; transition:transform .28s ease; }
+  .main { margin-right:0 !important; width:100%; }
+  .topbar { height:auto; min-height:60px; padding:9px 12px !important; flex-wrap:wrap; }
+  .content { padding:14px !important; }
+}
+@media (max-width:800px) {
+  #page-dashboard .two-col { grid-template-columns:1fr !important; }
+}
+@media (max-width:760px) {
+  #page-dashboard .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:10px; }
+  .dashboard-actions-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:11px; }
+  .dashboard-action-item { grid-template-columns:32px minmax(0,1fr) auto; min-height:68px; gap:7px; padding:9px; }
+  .dashboard-action-item .action-icon { width:30px; height:30px; font-size:15px; }
+  .dashboard-action-item .action-label { font-size:11px; }
+  .dashboard-action-item .action-count { font-size:20px; }
+}
+@media (max-width:380px) {
+  .dashboard-actions-grid { grid-template-columns:1fr; }
+}
+
+  </style>
 </head>
 <body>
 
@@ -1300,7 +1445,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
         <div class="card">
           <div class="card-header">
             <h2>آخر القضايا</h2>
-            <button class="btn btn-primary btn-sm" onclick="showPage('cases')">الكل</button>
+            <button class="btn btn-primary btn-sm" onclick="showPage('cases')">عرض الكل</button>
           </div>
           <div class="card-body no-pad">
             <div class="table-wrap">
@@ -1315,7 +1460,7 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
         <div class="card">
           <div class="card-header">
             <h2>المواعيد القادمة</h2>
-            <button class="btn btn-primary btn-sm" onclick="showPage('calendar')">الكل</button>
+            <button class="btn btn-primary btn-sm" onclick="showPage('calendar')">عرض الكل</button>
           </div>
           <div class="card-body no-pad">
             <div class="table-wrap">
@@ -1328,6 +1473,25 @@ html:has(#dqAuthGate:not([style*="none"])),body:has(#dqAuthGate:not([style*="non
           </div>
         </div>
       </div>
+      <section class="card dashboard-action-card" aria-labelledby="dashboardActionTitle">
+        <div class="card-header dashboard-action-heading">
+          <div><h2 id="dashboardActionTitle">يحتاج إلى إجراء</h2><p>مهام وتنبيهات مرتبطة مباشرة بسجلات المكتب</p></div>
+        </div>
+        <div class="dashboard-actions-grid">
+          <button type="button" class="dashboard-action-item action-red" onclick="showPage('agenda')">
+            <span class="action-icon" aria-hidden="true">🏛️</span><span class="action-label">جلسات بلا نتيجة</span><span class="action-count" id="actionPendingSessions">0</span>
+          </button>
+          <button type="button" class="dashboard-action-item action-amber" onclick="showPage('calendar')">
+            <span class="action-icon" aria-hidden="true">📅</span><span class="action-label">مواعيد خلال 7 أيام</span><span class="action-count" id="actionUpcomingEvents">0</span>
+          </button>
+          <button type="button" class="dashboard-action-item action-blue" onclick="showPage('billing')">
+            <span class="action-icon" aria-hidden="true">🧾</span><span class="action-label">فواتير معلقة</span><span class="action-count" id="actionPendingInvoices">0</span>
+          </button>
+          <button type="button" class="dashboard-action-item action-green" onclick="showPage('tasks')">
+            <span class="action-icon" aria-hidden="true">✓</span><span class="action-label">مهام غير منتهية</span><span class="action-count" id="actionPendingTasks">0</span>
+          </button>
+        </div>
+      </section>
     </div>
 
     <!-- CLIENTS -->
@@ -5317,6 +5481,8 @@ function renderDashboard() {
   const todaySessions = sessions.filter(s => s.date === isoToday());
   const tomorrowSessions = sessions.filter(s => s.date === isoToday(1));
   const pendingSessions = sessions.filter(s => !s.outcome && s.date < isoToday());
+  const pendingTasksForAction = DB.get('tasks').filter(t => t.status !== 'منتهية');
+  const pendingInvoicesForAction = invoices.filter(i => i.status !== 'مدفوعة');
   document.getElementById('statSessions').textContent = weekSessions.length;
   document.getElementById('statDeadlines').textContent = upcoming.length;
 
@@ -5324,36 +5490,40 @@ function renderDashboard() {
   const alertBox = document.getElementById('upcomingAlert');
   let alerts = '';
   if (todaySessions.length) {
-    alerts += `<div class="alert-banner" style="cursor:pointer;" onclick="openCourtDay(isoToday())">🏛️ لديك <strong>${todaySessions.length}</strong> جلسة اليوم — اضغط لفتح «يوم المحكمة»</div>`;
+    alerts += `<div class="alert-banner alert-info" style="cursor:pointer;" onclick="openCourtDay(isoToday())">🏛️ لديك <strong>${todaySessions.length}</strong> جلسة اليوم — اضغط لفتح «يوم المحكمة»</div>`;
   }
   if (tomorrowSessions.length) {
-    alerts += `<div class="alert-banner" style="cursor:pointer;" onclick="openCourtDay(isoToday(1))">📅 لديك <strong>${tomorrowSessions.length}</strong> جلسة غدًا — راجع التحضير</div>`;
+    alerts += `<div class="alert-banner alert-warning" style="cursor:pointer;" onclick="openCourtDay(isoToday(1))">📅 لديك <strong>${tomorrowSessions.length}</strong> جلسة غدًا — راجع التحضير</div>`;
   }
   if (pendingSessions.length) {
-    alerts += `<div class="alert-banner" style="cursor:pointer;background:#fee2e2;border-color:#dc2626;color:#991b1b;" onclick="openCourtDay(isoToday())">⚠️ <strong>${pendingSessions.length}</strong> جلسة سابقة لم تُسجَّل نتيجتها</div>`;
+    alerts += `<div class="alert-banner alert-urgent" style="cursor:pointer;background:#fee2e2;border-color:#dc2626;color:#991b1b;" onclick="openCourtDay(isoToday())">⚠️ <strong>${pendingSessions.length}</strong> جلسة سابقة لم تُسجَّل نتيجتها</div>`;
   }
   const lateTasks = DB.get('tasks').filter(t => t.status !== 'منتهية' && t.due && t.due <= isoToday());
   if (lateTasks.length) {
-    alerts += `<div class="alert-banner" style="cursor:pointer;" onclick="showPage('tasks')">✅ <strong>${lateTasks.length}</strong> مهمة مستحقة اليوم أو متأخرة</div>`;
+    alerts += `<div class="alert-banner alert-success" style="cursor:pointer;" onclick="showPage('tasks')">✅ <strong>${lateTasks.length}</strong> مهمة مستحقة اليوم أو متأخرة</div>`;
   }
   const poaAlerts = DB.get('poas').filter(p => { const k = poaState(p).key; return k === 'soon' || k === 'expired'; });
   if (poaAlerts.length) {
-    alerts += `<div class="alert-banner" style="cursor:pointer;" onclick="showPage('poas')">🪪 <strong>${poaAlerts.length}</strong> توكيل منتهٍ أو قارب على الانتهاء</div>`;
+    alerts += `<div class="alert-banner alert-warning" style="cursor:pointer;" onclick="showPage('poas')">🪪 <strong>${poaAlerts.length}</strong> توكيل منتهٍ أو قارب على الانتهاء</div>`;
   }
   const remindEvents = events.filter(e => e.remind > 0 && e.type !== 'جلسة محكمة' && (() => { const d = daysUntil(e.date); return d > 0 && d <= e.remind; })());
   if (remindEvents.length) {
-    alerts += `<div class="alert-banner">🔔 تذكير: ${remindEvents.map(e => esc(e.desc) + ' (' + esc(e.date) + ')').join('، ')}</div>`;
+    alerts += `<div class="alert-banner alert-info">🔔 تذكير: ${remindEvents.map(e => esc(e.desc) + ' (' + esc(e.date) + ')').join('، ')}</div>`;
   }
   const hasData = ['clients', 'cases', 'sessions'].some(k => DB.get(k).length);
   const lastExp = parseInt(localStorage.getItem('dq_lastExport') || '0');
   if (hasData && (!lastExp || Date.now() - lastExp > 7 * 86400000)) {
-    alerts += `<div class="alert-banner" style="cursor:pointer;background:#fee2e2;border-color:#dc2626;color:#991b1b;" onclick="showPage('settings')">💾 لم تُصدِّر نسخة احتياطية منذ أكثر من أسبوع — بياناتك محفوظة في هذا المتصفح فقط. اضغط للتصدير.</div>`;
+    alerts += `<div class="alert-banner alert-urgent" style="cursor:pointer;background:#fee2e2;border-color:#dc2626;color:#991b1b;" onclick="showPage('settings')">💾 لم تُصدِّر نسخة احتياطية منذ أكثر من أسبوع — بياناتك محفوظة في هذا المتصفح فقط. اضغط للتصدير.</div>`;
   }
   const todayEvents = events.filter(e => e.date === todayStr);
   if (todayEvents.length) {
-    alerts += `<div class="alert-banner">⏰ مواعيد اليوم: ${todayEvents.map(e => esc(e.desc)).join('، ')}</div>`;
+    alerts += `<div class="alert-banner alert-info">⏰ مواعيد اليوم: ${todayEvents.map(e => esc(e.desc)).join('، ')}</div>`;
   }
   alertBox.innerHTML = alerts;
+  document.getElementById('actionPendingSessions').textContent = pendingSessions.length;
+  document.getElementById('actionUpcomingEvents').textContent = upcoming.length;
+  document.getElementById('actionPendingInvoices').textContent = pendingInvoicesForAction.length;
+  document.getElementById('actionPendingTasks').textContent = pendingTasksForAction.length;
 
   // Recent cases
   const tbody = document.getElementById('dashboardCases');
